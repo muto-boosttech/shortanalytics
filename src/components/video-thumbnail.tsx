@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Play } from "lucide-react";
 
 interface VideoThumbnailProps {
@@ -26,15 +26,25 @@ export function VideoThumbnail({
   className = "",
   showPlayIcon = true,
 }: VideoThumbnailProps) {
-  const [imgSrc, setImgSrc] = useState<string | null>(thumbnailUrl || null);
-  const [isLoading, setIsLoading] = useState(!thumbnailUrl);
+  const [imgSrc, setImgSrc] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const prevVideoIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // videoIdが変わった場合は状態をリセット
+    if (prevVideoIdRef.current !== videoId) {
+      setImgSrc(null);
+      setIsLoading(true);
+      setHasError(false);
+      prevVideoIdRef.current = videoId;
+    }
+
     // DBに保存されたサムネイルURLがあれば使用
     if (thumbnailUrl) {
       setImgSrc(thumbnailUrl);
       setIsLoading(false);
+      setHasError(false);
       return;
     }
 
@@ -47,6 +57,7 @@ export function VideoThumbnail({
           if (data.thumbnailUrl) {
             setImgSrc(data.thumbnailUrl);
             setIsLoading(false);
+            setHasError(false);
             return;
           }
         }
@@ -65,6 +76,12 @@ export function VideoThumbnail({
   const handleError = () => {
     setHasError(true);
     setImgSrc(null);
+  };
+
+  // 画像が正常に読み込まれた場合
+  const handleLoad = () => {
+    setIsLoading(false);
+    setHasError(false);
   };
 
   return (
@@ -92,6 +109,7 @@ export function VideoThumbnail({
           alt={description}
           className="h-full w-full object-cover"
           onError={handleError}
+          onLoad={handleLoad}
           loading="lazy"
         />
       )}

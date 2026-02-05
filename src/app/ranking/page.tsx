@@ -292,13 +292,14 @@ export default function RankingPage() {
               {videos.map((video) => (
                 <Card key={video.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                   <div className="relative aspect-[9/16]">
-                    <VideoThumbnail
-                      videoId={video.tiktokVideoId}
-                      thumbnailUrl={video.thumbnailUrl}
-                      description={video.description}
-                      className="h-full w-full"
-                      showPlayIcon={false}
-                    />
+<VideoThumbnail
+                                      key={`thumb-${video.id}-${video.tiktokVideoId}`}
+                                      videoId={video.tiktokVideoId}
+                                      thumbnailUrl={video.thumbnailUrl}
+                                      description={video.description}
+                                      className="h-full w-full"
+                                      showPlayIcon={false}
+                                    />
                     <div className="absolute bottom-2 right-2 rounded bg-black/70 px-2 py-1 text-xs text-white">
                       {formatDuration(video.videoDurationSeconds)}
                     </div>
