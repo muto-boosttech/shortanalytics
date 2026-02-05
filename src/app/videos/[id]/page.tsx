@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -148,22 +147,22 @@ export default function VideoDetailPage() {
 
   return (
     <MainLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Button variant="ghost" size="sm" className="h-8 px-2 sm:px-3" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
-            戻る
+            <span className="hidden sm:inline ml-1">戻る</span>
           </Button>
-          <h1 className="text-2xl font-bold text-gray-900">動画詳細</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">動画詳細</h1>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
           {/* Video Preview */}
           <div className="lg:col-span-1">
             <Card>
-              <CardContent className="p-4">
-                <div className="relative aspect-[9/16] overflow-hidden rounded-lg">
+              <CardContent className="p-3 sm:p-4">
+                <div className="relative aspect-[9/16] overflow-hidden rounded-lg max-w-[280px] mx-auto sm:max-w-none">
                   <VideoThumbnail
                     videoId={video.tiktokVideoId}
                     thumbnailUrl={video.thumbnailUrl}
@@ -171,20 +170,20 @@ export default function VideoDetailPage() {
                     className="h-full w-full"
                     showPlayIcon={true}
                   />
-                  <div className="absolute bottom-2 right-2 rounded bg-black/70 px-2 py-1 text-sm text-white">
+                  <div className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs sm:text-sm text-white">
                     {Math.floor(video.videoDurationSeconds / 60)}:
                     {(video.videoDurationSeconds % 60).toString().padStart(2, "0")}
                   </div>
                 </div>
-                <div className="mt-4">
+                <div className="mt-3 sm:mt-4">
                   <a
                     href={video.videoUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block"
                   >
-                    <Button className="w-full">
-                      <ExternalLink className="h-4 w-4" />
+                    <Button className="w-full h-9 sm:h-10 text-sm sm:text-base">
+                      <ExternalLink className="h-4 w-4 mr-1.5" />
                       TikTokで見る
                     </Button>
                   </a>
@@ -194,18 +193,18 @@ export default function VideoDetailPage() {
           </div>
 
           {/* Video Info */}
-          <div className="space-y-6 lg:col-span-2">
+          <div className="space-y-4 sm:space-y-6 lg:col-span-2">
             {/* Description */}
             <Card>
-              <CardHeader>
-                <CardTitle>説明</CardTitle>
+              <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-2">
+                <CardTitle className="text-sm sm:text-base">説明</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-wrap text-gray-700">{video.description}</p>
+              <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                <p className="whitespace-pre-wrap text-xs sm:text-sm text-gray-700 line-clamp-6 sm:line-clamp-none">{video.description}</p>
                 {video.hashtags && video.hashtags.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="mt-3 sm:mt-4 flex flex-wrap gap-1.5 sm:gap-2">
                     {video.hashtags.map((tag, index) => (
-                      <Badge key={index} variant="secondary">
+                      <Badge key={index} variant="secondary" className="text-[10px] sm:text-xs">
                         #{tag}
                       </Badge>
                     ))}
@@ -216,64 +215,64 @@ export default function VideoDetailPage() {
 
             {/* Stats */}
             <Card>
-              <CardHeader>
-                <CardTitle>パフォーマンス</CardTitle>
+              <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-2">
+                <CardTitle className="text-sm sm:text-base">パフォーマンス</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="flex items-center gap-3 rounded-lg bg-blue-50 p-3">
-                    <Eye className="h-8 w-8 text-blue-500" />
-                    <div>
-                      <p className="text-sm text-gray-600">再生数</p>
-                      <p className="text-xl font-bold">{formatNumber(video.viewCount)}</p>
+              <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
+                  <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-blue-50 p-2 sm:p-3">
+                    <Eye className="h-5 w-5 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-sm text-gray-600">再生数</p>
+                      <p className="text-sm sm:text-xl font-bold truncate">{formatNumber(video.viewCount)}</p>
                       {viewDiff && (
-                        <div className={`flex items-center gap-1 text-xs ${viewDiff.color}`}>
+                        <div className={`hidden sm:flex items-center gap-1 text-xs ${viewDiff.color}`}>
                           <viewDiff.icon className="h-3 w-3" />
                           {viewDiff.text}
                         </div>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 rounded-lg bg-pink-50 p-3">
-                    <Heart className="h-8 w-8 text-pink-500" />
-                    <div>
-                      <p className="text-sm text-gray-600">いいね</p>
-                      <p className="text-xl font-bold">{formatNumber(video.likeCount)}</p>
+                  <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-pink-50 p-2 sm:p-3">
+                    <Heart className="h-5 w-5 sm:h-8 sm:w-8 text-pink-500 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-sm text-gray-600">いいね</p>
+                      <p className="text-sm sm:text-xl font-bold truncate">{formatNumber(video.likeCount)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 rounded-lg bg-purple-50 p-3">
-                    <MessageCircle className="h-8 w-8 text-purple-500" />
-                    <div>
-                      <p className="text-sm text-gray-600">コメント</p>
-                      <p className="text-xl font-bold">{formatNumber(video.commentCount)}</p>
+                  <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-purple-50 p-2 sm:p-3">
+                    <MessageCircle className="h-5 w-5 sm:h-8 sm:w-8 text-purple-500 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-sm text-gray-600">コメント</p>
+                      <p className="text-sm sm:text-xl font-bold truncate">{formatNumber(video.commentCount)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 rounded-lg bg-green-50 p-3">
-                    <Share2 className="h-8 w-8 text-green-500" />
-                    <div>
-                      <p className="text-sm text-gray-600">シェア</p>
-                      <p className="text-xl font-bold">{formatNumber(video.shareCount)}</p>
+                  <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-green-50 p-2 sm:p-3">
+                    <Share2 className="h-5 w-5 sm:h-8 sm:w-8 text-green-500 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-sm text-gray-600">シェア</p>
+                      <p className="text-sm sm:text-xl font-bold truncate">{formatNumber(video.shareCount)}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Engagement Rate with Benchmark */}
-                <div className="mt-4 rounded-lg border p-4">
-                  <div className="flex items-center justify-between">
+                <div className="mt-3 sm:mt-4 rounded-lg border p-3 sm:p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
-                      <p className="text-sm text-gray-600">エンゲージメント率</p>
-                      <p className="text-3xl font-bold text-primary">
+                      <p className="text-xs sm:text-sm text-gray-600">エンゲージメント率</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-primary">
                         {formatPercent(video.engagementRate)}
                       </p>
                     </div>
                     {erDiff && benchmark && (
-                      <div className={`rounded-lg p-3 ${erDiff.bgColor}`}>
-                        <p className="text-xs text-gray-600">業界平均比</p>
-                        <div className={`flex items-center gap-1 text-lg font-bold ${erDiff.color}`}>
-                          <erDiff.icon className="h-5 w-5" />
+                      <div className={`rounded-lg p-2 sm:p-3 ${erDiff.bgColor}`}>
+                        <p className="text-[10px] sm:text-xs text-gray-600">業界平均比</p>
+                        <div className={`flex items-center gap-1 text-base sm:text-lg font-bold ${erDiff.color}`}>
+                          <erDiff.icon className="h-4 w-4 sm:h-5 sm:w-5" />
                           {erDiff.text}
                         </div>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-[10px] sm:text-xs text-gray-500">
                           平均: {formatPercent(benchmark.avgEngagementRate)}
                         </p>
                       </div>
@@ -285,37 +284,37 @@ export default function VideoDetailPage() {
 
             {/* Author Info */}
             <Card>
-              <CardHeader>
-                <CardTitle>投稿者情報</CardTitle>
+              <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-2">
+                <CardTitle className="text-sm sm:text-base">投稿者情報</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                   <div className="flex items-center gap-2">
-                    <User className="h-5 w-5 text-gray-400" />
-                    <div>
-                      <p className="text-xs text-gray-500">ユーザー名</p>
-                      <p className="font-medium">@{video.authorUsername}</p>
+                    <User className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-xs text-gray-500">ユーザー名</p>
+                      <p className="text-xs sm:text-sm font-medium truncate">@{video.authorUsername}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-gray-400" />
-                    <div>
-                      <p className="text-xs text-gray-500">フォロワー数</p>
-                      <p className="font-medium">{formatNumber(video.authorFollowerCount)}</p>
+                    <Users className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-xs text-gray-500">フォロワー数</p>
+                      <p className="text-xs sm:text-sm font-medium truncate">{formatNumber(video.authorFollowerCount)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-gray-400" />
-                    <div>
-                      <p className="text-xs text-gray-500">投稿日時</p>
-                      <p className="font-medium">{formatDateTime(video.postedAt)}</p>
+                    <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-xs text-gray-500">投稿日時</p>
+                      <p className="text-xs sm:text-sm font-medium truncate">{formatDateTime(video.postedAt)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-gray-400" />
-                    <div>
-                      <p className="text-xs text-gray-500">収集日時</p>
-                      <p className="font-medium">{formatDateTime(video.collectedAt)}</p>
+                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-xs text-gray-500">収集日時</p>
+                      <p className="text-xs sm:text-sm font-medium truncate">{formatDateTime(video.collectedAt)}</p>
                     </div>
                   </div>
                 </div>
@@ -325,51 +324,51 @@ export default function VideoDetailPage() {
             {/* Tags */}
             {video.videoTags && video.videoTags.length > 0 && (
               <Card>
-                <CardHeader>
-                  <CardTitle>分析タグ</CardTitle>
+                <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-2">
+                  <CardTitle className="text-sm sm:text-base">分析タグ</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
                     {video.videoTags[0].industry && (
                       <div>
-                        <p className="text-xs text-gray-500">業種</p>
-                        <Badge variant="default">{video.videoTags[0].industry.name}</Badge>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">業種</p>
+                        <Badge variant="default" className="text-[10px] sm:text-xs">{video.videoTags[0].industry.name}</Badge>
                       </div>
                     )}
                     {video.videoTags[0].contentType && (
                       <div>
-                        <p className="text-xs text-gray-500">コンテンツ類型</p>
-                        <Badge variant="secondary">{video.videoTags[0].contentType}</Badge>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">コンテンツ類型</p>
+                        <Badge variant="secondary" className="text-[10px] sm:text-xs">{video.videoTags[0].contentType}</Badge>
                       </div>
                     )}
                     {video.videoTags[0].hookType && (
                       <div>
-                        <p className="text-xs text-gray-500">フックタイプ</p>
-                        <Badge variant="outline">{video.videoTags[0].hookType}</Badge>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">フックタイプ</p>
+                        <Badge variant="outline" className="text-[10px] sm:text-xs">{video.videoTags[0].hookType}</Badge>
                       </div>
                     )}
                     {video.videoTags[0].durationCategory && (
                       <div>
-                        <p className="text-xs text-gray-500">尺カテゴリ</p>
-                        <Badge variant="secondary">{video.videoTags[0].durationCategory}</Badge>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">尺カテゴリ</p>
+                        <Badge variant="secondary" className="text-[10px] sm:text-xs">{video.videoTags[0].durationCategory}</Badge>
                       </div>
                     )}
                     {video.videoTags[0].performerType && (
                       <div>
-                        <p className="text-xs text-gray-500">出演者タイプ</p>
-                        <Badge variant="outline">{video.videoTags[0].performerType}</Badge>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">出演者タイプ</p>
+                        <Badge variant="outline" className="text-[10px] sm:text-xs">{video.videoTags[0].performerType}</Badge>
                       </div>
                     )}
                     {video.videoTags[0].tone && (
                       <div>
-                        <p className="text-xs text-gray-500">トーン</p>
-                        <Badge variant="secondary">{video.videoTags[0].tone}</Badge>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">トーン</p>
+                        <Badge variant="secondary" className="text-[10px] sm:text-xs">{video.videoTags[0].tone}</Badge>
                       </div>
                     )}
                     {video.videoTags[0].ctaType && (
                       <div>
-                        <p className="text-xs text-gray-500">CTAタイプ</p>
-                        <Badge variant="outline">{video.videoTags[0].ctaType}</Badge>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">CTAタイプ</p>
+                        <Badge variant="outline" className="text-[10px] sm:text-xs">{video.videoTags[0].ctaType}</Badge>
                       </div>
                     )}
                   </div>
@@ -380,12 +379,12 @@ export default function VideoDetailPage() {
             {/* Benchmark Comparison */}
             {benchmark && (
               <Card>
-                <CardHeader>
-                  <CardTitle>ベンチマーク比較</CardTitle>
+                <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-2">
+                  <CardTitle className="text-sm sm:text-base">ベンチマーク比較</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                  <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
+                    <table className="w-full text-xs sm:text-sm min-w-[300px]">
                       <thead>
                         <tr className="border-b">
                           <th className="py-2 text-left font-medium">指標</th>
@@ -396,7 +395,7 @@ export default function VideoDetailPage() {
                       </thead>
                       <tbody>
                         <tr className="border-b">
-                          <td className="py-2">エンゲージメント率</td>
+                          <td className="py-2">ER</td>
                           <td className="py-2 text-right font-medium">
                             {formatPercent(video.engagementRate)}
                           </td>

@@ -155,13 +155,21 @@ export default function DashboardPage() {
     return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
   };
 
+  // 短い日付フォーマット（モバイル用）
+  const formatDateShort = (dateStr: string | null) => {
+    if (!dateStr) return "-";
+    const date = new Date(dateStr);
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  };
+
   return (
     <MainLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">ダッシュボード</h1>
+      <div className="space-y-4 sm:space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">ダッシュボード</h1>
           <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="業種を選択" />
             </SelectTrigger>
             <SelectContent>
@@ -183,20 +191,26 @@ export default function DashboardPage() {
             {/* Data Range Info */}
             {dashboardData?.dataRange && (
               <Card className="bg-gray-50 border-gray-200">
-                <CardContent className="py-4">
-                  <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-sm">
+                <CardContent className="py-3 sm:py-4">
+                  <div className="flex flex-col gap-2 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-8 sm:gap-y-2 sm:text-sm">
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-primary" />
+                      <Calendar className="h-3.5 w-3.5 text-primary sm:h-4 sm:w-4" />
                       <span className="font-medium text-gray-700">投稿期間:</span>
-                      <span className="text-gray-600">
+                      <span className="text-gray-600 hidden sm:inline">
                         {formatDate(dashboardData.dataRange.postedFrom)} 〜 {formatDate(dashboardData.dataRange.postedTo)}
+                      </span>
+                      <span className="text-gray-600 sm:hidden">
+                        {formatDateShort(dashboardData.dataRange.postedFrom)} 〜 {formatDateShort(dashboardData.dataRange.postedTo)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-accent" />
+                      <Calendar className="h-3.5 w-3.5 text-accent sm:h-4 sm:w-4" />
                       <span className="font-medium text-gray-700">収集期間:</span>
-                      <span className="text-gray-600">
+                      <span className="text-gray-600 hidden sm:inline">
                         {formatDate(dashboardData.dataRange.collectedFrom)} 〜 {formatDate(dashboardData.dataRange.collectedTo)}
+                      </span>
+                      <span className="text-gray-600 sm:hidden">
+                        {formatDateShort(dashboardData.dataRange.collectedFrom)} 〜 {formatDateShort(dashboardData.dataRange.collectedTo)}
                       </span>
                     </div>
                   </div>
@@ -205,50 +219,50 @@ export default function DashboardPage() {
             )}
 
             {/* KPI Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               {kpiCards.map((card) => (
                 <Card key={card.title}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-gray-600">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 sm:p-6 sm:pb-2">
+                    <CardTitle className="text-xs font-medium text-gray-600 sm:text-sm">
                       {card.title}
                     </CardTitle>
-                    <card.icon className={`h-5 w-5 ${card.color}`} />
+                    <card.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${card.color}`} />
                   </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{card.value}</div>
+                  <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                    <div className="text-lg font-bold sm:text-2xl">{card.value}</div>
                   </CardContent>
                 </Card>
               ))}
             </div>
 
-            {/* Charts - 2 Column Layout */}
-            <div className="grid gap-6 lg:grid-cols-2">
+            {/* Charts */}
+            <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
               {/* Content Type ER Chart */}
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">コンテンツ類型別ER</CardTitle>
+                <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-2">
+                  <CardTitle className="text-sm sm:text-base">コンテンツ類型別ER</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
+                <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                  <div className="h-[220px] sm:h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={dashboardData?.charts.contentTypeStats || []}
                         layout="vertical"
-                        margin={{ top: 5, right: 30, left: 5, bottom: 5 }}
+                        margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                         <XAxis
                           type="number"
                           tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
-                          fontSize={11}
+                          fontSize={10}
                           tickLine={false}
                           axisLine={false}
                         />
                         <YAxis 
                           dataKey="type" 
                           type="category" 
-                          width={80} 
-                          fontSize={12}
+                          width={60} 
+                          fontSize={10}
                           tickLine={false}
                           axisLine={false}
                         />
@@ -257,7 +271,7 @@ export default function DashboardPage() {
                             `${(Number(value || 0) * 100).toFixed(2)}%`,
                             "ER",
                           ]}
-                          contentStyle={{ fontSize: 12 }}
+                          contentStyle={{ fontSize: 11 }}
                         />
                         <Bar dataKey="avgEngagement" radius={[0, 4, 4, 0]}>
                           {(dashboardData?.charts.contentTypeStats || []).map((_, index) => (
@@ -272,36 +286,36 @@ export default function DashboardPage() {
 
               {/* Hook Type Views Chart */}
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">フック別再生数</CardTitle>
+                <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-2">
+                  <CardTitle className="text-sm sm:text-base">フック別再生数</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
+                <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                  <div className="h-[220px] sm:h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={dashboardData?.charts.hookTypeStats || []}
                         layout="vertical"
-                        margin={{ top: 5, right: 30, left: 5, bottom: 5 }}
+                        margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                         <XAxis
                           type="number"
                           tickFormatter={(value) => formatNumber(value)}
-                          fontSize={11}
+                          fontSize={10}
                           tickLine={false}
                           axisLine={false}
                         />
                         <YAxis 
                           dataKey="type" 
                           type="category" 
-                          width={100} 
-                          fontSize={11}
+                          width={70} 
+                          fontSize={10}
                           tickLine={false}
                           axisLine={false}
                         />
                         <Tooltip
                           formatter={(value) => [formatNumber(Number(value || 0)), "再生数"]}
-                          contentStyle={{ fontSize: 12 }}
+                          contentStyle={{ fontSize: 11 }}
                         />
                         <Bar dataKey="totalViews" radius={[0, 4, 4, 0]}>
                           {(dashboardData?.charts.hookTypeStats || []).map((_, index) => (
@@ -333,30 +347,30 @@ export default function DashboardPage() {
 
               {/* Duration Category ER Chart - Full Width */}
               <Card className="lg:col-span-2">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">動画尺別ER</CardTitle>
+                <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-2">
+                  <CardTitle className="text-sm sm:text-base">動画尺別ER</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="h-[220px]">
+                <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                  <div className="h-[180px] sm:h-[220px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={sortedDurationStats}
                         layout="vertical"
-                        margin={{ top: 5, right: 30, left: 5, bottom: 5 }}
+                        margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                         <XAxis
                           type="number"
                           tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
-                          fontSize={11}
+                          fontSize={10}
                           tickLine={false}
                           axisLine={false}
                         />
                         <YAxis 
                           dataKey="category" 
                           type="category" 
-                          width={70} 
-                          fontSize={12}
+                          width={55} 
+                          fontSize={10}
                           tickLine={false}
                           axisLine={false}
                         />
@@ -368,7 +382,7 @@ export default function DashboardPage() {
                               "ER",
                             ];
                           }}
-                          contentStyle={{ fontSize: 12 }}
+                          contentStyle={{ fontSize: 11 }}
                         />
                         <Bar dataKey="avgEngagement" radius={[0, 4, 4, 0]}>
                           {sortedDurationStats.map((_, index) => (

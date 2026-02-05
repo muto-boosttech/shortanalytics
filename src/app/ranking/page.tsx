@@ -25,6 +25,9 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  Filter,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { AIAssistCard } from "@/components/ai-assist-card";
 
@@ -94,6 +97,7 @@ export default function RankingPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetch("/api/industries")
@@ -161,18 +165,21 @@ export default function RankingPage() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const activeFilterCount = selectedContentTypes.length + selectedHookTypes.length;
+
   return (
     <MainLayout>
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">ランキング</h1>
+      <div className="space-y-4 sm:space-y-6">
+        <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">ランキング</h1>
 
         {/* Filters */}
         <Card>
-          <CardContent className="p-4">
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-4">
+          <CardContent className="p-3 sm:p-4">
+            <div className="space-y-3 sm:space-y-4">
+              {/* Main filters - always visible */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
                 <div className="flex items-center gap-2">
-                  <Label>業種:</Label>
+                  <Label className="text-xs sm:text-sm whitespace-nowrap">業種:</Label>
                   <Select
                     value={selectedIndustry}
                     onValueChange={(value) => {
@@ -180,7 +187,7 @@ export default function RankingPage() {
                       setPage(1);
                     }}
                   >
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-full sm:w-[180px] h-9">
                       <SelectValue placeholder="全業種" />
                     </SelectTrigger>
                     <SelectContent>
@@ -195,7 +202,7 @@ export default function RankingPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Label>並び替え:</Label>
+                  <Label className="text-xs sm:text-sm whitespace-nowrap">並び替え:</Label>
                   <Select
                     value={sortBy}
                     onValueChange={(value) => {
@@ -203,7 +210,7 @@ export default function RankingPage() {
                       setPage(1);
                     }}
                   >
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-full sm:w-[180px] h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -215,47 +222,73 @@ export default function RankingPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Mobile filter toggle */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="sm:hidden h-9"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <Filter className="h-4 w-4 mr-1" />
+                  フィルター
+                  {activeFilterCount > 0 && (
+                    <Badge variant="accent" className="ml-1 h-5 px-1.5">
+                      {activeFilterCount}
+                    </Badge>
+                  )}
+                  {showFilters ? (
+                    <ChevronUp className="h-4 w-4 ml-1" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 ml-1" />
+                  )}
+                </Button>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">コンテンツ類型:</Label>
-                <div className="flex flex-wrap gap-2">
-                  {CONTENT_TYPES.map((type) => (
-                    <div key={type} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`content-${type}`}
-                        checked={selectedContentTypes.includes(type)}
-                        onCheckedChange={() => toggleContentType(type)}
-                      />
-                      <Label
-                        htmlFor={`content-${type}`}
-                        className="text-sm font-normal cursor-pointer"
-                      >
-                        {type}
-                      </Label>
-                    </div>
-                  ))}
+              {/* Expandable filters on mobile, always visible on desktop */}
+              <div className={`space-y-3 ${showFilters ? "block" : "hidden sm:block"}`}>
+                <div className="space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium">コンテンツ類型:</Label>
+                  <div className="flex flex-wrap gap-x-3 gap-y-2 sm:gap-2">
+                    {CONTENT_TYPES.map((type) => (
+                      <div key={type} className="flex items-center space-x-1.5 sm:space-x-2">
+                        <Checkbox
+                          id={`content-${type}`}
+                          checked={selectedContentTypes.includes(type)}
+                          onCheckedChange={() => toggleContentType(type)}
+                          className="h-4 w-4"
+                        />
+                        <Label
+                          htmlFor={`content-${type}`}
+                          className="text-xs sm:text-sm font-normal cursor-pointer"
+                        >
+                          {type}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">フックタイプ:</Label>
-                <div className="flex flex-wrap gap-2">
-                  {HOOK_TYPES.map((type) => (
-                    <div key={type} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`hook-${type}`}
-                        checked={selectedHookTypes.includes(type)}
-                        onCheckedChange={() => toggleHookType(type)}
-                      />
-                      <Label
-                        htmlFor={`hook-${type}`}
-                        className="text-sm font-normal cursor-pointer"
-                      >
-                        {type}
-                      </Label>
-                    </div>
-                  ))}
+                <div className="space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium">フックタイプ:</Label>
+                  <div className="flex flex-wrap gap-x-3 gap-y-2 sm:gap-2">
+                    {HOOK_TYPES.map((type) => (
+                      <div key={type} className="flex items-center space-x-1.5 sm:space-x-2">
+                        <Checkbox
+                          id={`hook-${type}`}
+                          checked={selectedHookTypes.includes(type)}
+                          onCheckedChange={() => toggleHookType(type)}
+                          className="h-4 w-4"
+                        />
+                        <Label
+                          htmlFor={`hook-${type}`}
+                          className="text-xs sm:text-sm font-normal cursor-pointer"
+                        >
+                          {type}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -288,73 +321,73 @@ export default function RankingPage() {
           </div>
         ) : (
           <>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               {videos.map((video) => (
                 <Card key={video.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                   <div className="relative aspect-[9/16]">
-<VideoThumbnail
-                                      key={`thumb-${video.id}-${video.tiktokVideoId}`}
-                                      videoId={video.tiktokVideoId}
-                                      thumbnailUrl={video.thumbnailUrl}
-                                      description={video.description}
-                                      className="h-full w-full"
-                                      showPlayIcon={false}
-                                    />
-                    <div className="absolute bottom-2 right-2 rounded bg-black/70 px-2 py-1 text-xs text-white">
+                    <VideoThumbnail
+                      key={`thumb-${video.id}-${video.tiktokVideoId}`}
+                      videoId={video.tiktokVideoId}
+                      thumbnailUrl={video.thumbnailUrl}
+                      description={video.description}
+                      className="h-full w-full"
+                      showPlayIcon={false}
+                    />
+                    <div className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2 rounded bg-black/70 px-1.5 py-0.5 sm:px-2 sm:py-1 text-[10px] sm:text-xs text-white">
                       {formatDuration(video.videoDurationSeconds)}
                     </div>
                   </div>
-                  <CardContent className="p-3">
-                    <p className="mb-2 line-clamp-2 text-sm font-medium">
+                  <CardContent className="p-2 sm:p-3">
+                    <p className="mb-1.5 sm:mb-2 line-clamp-2 text-xs sm:text-sm font-medium">
                       {video.description}
                     </p>
-                    <p className="mb-2 text-xs text-gray-500">
+                    <p className="mb-1.5 sm:mb-2 text-[10px] sm:text-xs text-gray-500 truncate">
                       @{video.authorUsername} · {formatDate(video.postedAt)}
                     </p>
 
-                    <div className="mb-2 grid grid-cols-2 gap-2 text-xs">
-                      <div className="flex items-center gap-1 text-gray-600">
-                        <Eye className="h-3 w-3" />
+                    <div className="mb-1.5 sm:mb-2 grid grid-cols-2 gap-1 sm:gap-2 text-[10px] sm:text-xs">
+                      <div className="flex items-center gap-0.5 sm:gap-1 text-gray-600">
+                        <Eye className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                         {formatNumber(video.viewCount)}
                       </div>
-                      <div className="flex items-center gap-1 text-gray-600">
-                        <Heart className="h-3 w-3" />
+                      <div className="flex items-center gap-0.5 sm:gap-1 text-gray-600">
+                        <Heart className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                         {formatNumber(video.likeCount)}
                       </div>
-                      <div className="flex items-center gap-1 text-gray-600">
-                        <MessageCircle className="h-3 w-3" />
+                      <div className="flex items-center gap-0.5 sm:gap-1 text-gray-600">
+                        <MessageCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                         {formatNumber(video.commentCount)}
                       </div>
-                      <div className="flex items-center gap-1 text-gray-600">
-                        <Share2 className="h-3 w-3" />
+                      <div className="flex items-center gap-0.5 sm:gap-1 text-gray-600">
+                        <Share2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                         {formatNumber(video.shareCount)}
                       </div>
                     </div>
 
-                    <div className="mb-2">
-                      <Badge variant="accent" className="text-xs">
+                    <div className="mb-1.5 sm:mb-2">
+                      <Badge variant="accent" className="text-[10px] sm:text-xs px-1.5 sm:px-2">
                         ER: {formatPercent(video.engagementRate)}
                       </Badge>
                     </div>
 
                     {video.videoTags && video.videoTags.length > 0 && (
-                      <div className="mb-2 flex flex-wrap gap-1">
+                      <div className="mb-1.5 sm:mb-2 flex flex-wrap gap-1">
                         {video.videoTags[0]?.contentType && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2">
                             {video.videoTags[0].contentType}
                           </Badge>
                         )}
                         {video.videoTags[0]?.hookType && (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2 hidden sm:inline-flex">
                             {video.videoTags[0].hookType}
                           </Badge>
                         )}
                       </div>
                     )}
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5 sm:gap-2">
                       <Link href={`/videos/${video.id}`} className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full">
+                        <Button variant="outline" size="sm" className="w-full h-7 sm:h-8 text-xs sm:text-sm">
                           詳細
                         </Button>
                       </Link>
@@ -363,8 +396,8 @@ export default function RankingPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        <Button variant="ghost" size="sm">
-                          <ExternalLink className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                          <ExternalLink className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </Button>
                       </a>
                     </div>
@@ -374,26 +407,28 @@ export default function RankingPage() {
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center justify-center gap-2 sm:gap-4">
               <Button
                 variant="outline"
                 size="sm"
+                className="h-8 px-2 sm:px-3"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
               >
                 <ChevronLeft className="h-4 w-4" />
-                前へ
+                <span className="hidden sm:inline ml-1">前へ</span>
               </Button>
-              <span className="text-sm text-gray-600">
-                {page} / {totalPages} ページ
+              <span className="text-xs sm:text-sm text-gray-600">
+                {page} / {totalPages}
               </span>
               <Button
                 variant="outline"
                 size="sm"
+                className="h-8 px-2 sm:px-3"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
               >
-                次へ
+                <span className="hidden sm:inline mr-1">次へ</span>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
