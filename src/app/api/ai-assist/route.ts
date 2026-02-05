@@ -7,7 +7,10 @@ let openaiClient: OpenAI | null = null;
 
 function getOpenAIClient() {
   if (!openaiClient) {
-    openaiClient = new OpenAI();
+    // Manus環境変数が設定されている場合はそのまま使用
+    openaiClient = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
   }
   return openaiClient;
 }
