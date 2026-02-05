@@ -7,9 +7,10 @@ let openaiClient: OpenAI | null = null;
 
 function getOpenAIClient() {
   if (!openaiClient) {
-    // Manus環境変数が設定されている場合はそのまま使用
+    // OpenAIクライアントを初期化
     openaiClient = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
+      baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
     });
   }
   return openaiClient;
@@ -124,8 +125,9 @@ ${i + 1}位:
     });
   } catch (error) {
     console.error("Error generating AI assist:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { success: false, error: "Failed to generate AI analysis" },
+      { success: false, error: `Failed to generate AI analysis: ${errorMessage}` },
       { status: 500 }
     );
   }
