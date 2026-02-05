@@ -19,6 +19,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Cell,
 } from "recharts";
 import { Calendar, Eye, Heart, TrendingUp, Video } from "lucide-react";
 
@@ -69,6 +70,11 @@ interface DashboardData {
 
 // 動画尺カテゴリの表示順序
 const DURATION_ORDER = ["〜15秒", "〜30秒", "〜60秒", "60秒以上"];
+
+// カラーパレット
+const CONTENT_TYPE_COLORS = ["#6366F1", "#8B5CF6", "#A855F7", "#C084FC", "#D8B4FE"];
+const HOOK_TYPE_COLORS = ["#EC4899", "#F472B6", "#F9A8D4", "#FBCFE8", "#F43F5E", "#FB7185"];
+const DURATION_COLORS = ["#10B981", "#34D399", "#6EE7B7", "#A7F3D0"];
 
 export default function DashboardPage() {
   const [industries, setIndustries] = useState<Industry[]>([]);
@@ -214,20 +220,20 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            {/* Charts - 3 Column Layout */}
-            <div className="grid gap-6 lg:grid-cols-3">
+            {/* Charts - 2 Column Layout */}
+            <div className="grid gap-6 lg:grid-cols-2">
               {/* Content Type ER Chart */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">コンテンツ類型別ER</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[280px]">
+                  <div className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={dashboardData?.charts.contentTypeStats || []}
                         layout="vertical"
-                        margin={{ top: 5, right: 20, left: 5, bottom: 5 }}
+                        margin={{ top: 5, right: 30, left: 5, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                         <XAxis
@@ -240,7 +246,7 @@ export default function DashboardPage() {
                         <YAxis 
                           dataKey="type" 
                           type="category" 
-                          width={70} 
+                          width={80} 
                           fontSize={12}
                           tickLine={false}
                           axisLine={false}
@@ -252,25 +258,29 @@ export default function DashboardPage() {
                           ]}
                           contentStyle={{ fontSize: 12 }}
                         />
-                        <Bar dataKey="avgEngagement" fill="#6366F1" radius={[0, 4, 4, 0]} />
+                        <Bar dataKey="avgEngagement" radius={[0, 4, 4, 0]}>
+                          {(dashboardData?.charts.contentTypeStats || []).map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={CONTENT_TYPE_COLORS[index % CONTENT_TYPE_COLORS.length]} />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Hook Type Views Chart - Changed to Horizontal Bar */}
+              {/* Hook Type Views Chart */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">フック別再生数</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[280px]">
+                  <div className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={dashboardData?.charts.hookTypeStats || []}
                         layout="vertical"
-                        margin={{ top: 5, right: 20, left: 5, bottom: 5 }}
+                        margin={{ top: 5, right: 30, left: 5, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                         <XAxis
@@ -283,7 +293,7 @@ export default function DashboardPage() {
                         <YAxis 
                           dataKey="type" 
                           type="category" 
-                          width={85} 
+                          width={100} 
                           fontSize={11}
                           tickLine={false}
                           axisLine={false}
@@ -292,25 +302,29 @@ export default function DashboardPage() {
                           formatter={(value) => [formatNumber(Number(value)), "再生数"]}
                           contentStyle={{ fontSize: 12 }}
                         />
-                        <Bar dataKey="totalViews" fill="#EC4899" radius={[0, 4, 4, 0]} />
+                        <Bar dataKey="totalViews" radius={[0, 4, 4, 0]}>
+                          {(dashboardData?.charts.hookTypeStats || []).map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={HOOK_TYPE_COLORS[index % HOOK_TYPE_COLORS.length]} />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Duration Category ER Chart */}
-              <Card>
+              {/* Duration Category ER Chart - Full Width */}
+              <Card className="lg:col-span-2">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">動画尺別ER</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[280px]">
+                  <div className="h-[220px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={sortedDurationStats}
                         layout="vertical"
-                        margin={{ top: 5, right: 20, left: 5, bottom: 5 }}
+                        margin={{ top: 5, right: 30, left: 5, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                         <XAxis
@@ -323,7 +337,7 @@ export default function DashboardPage() {
                         <YAxis 
                           dataKey="category" 
                           type="category" 
-                          width={60} 
+                          width={70} 
                           fontSize={12}
                           tickLine={false}
                           axisLine={false}
@@ -338,7 +352,11 @@ export default function DashboardPage() {
                           }}
                           contentStyle={{ fontSize: 12 }}
                         />
-                        <Bar dataKey="avgEngagement" fill="#10B981" radius={[0, 4, 4, 0]} />
+                        <Bar dataKey="avgEngagement" radius={[0, 4, 4, 0]}>
+                          {sortedDurationStats.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={DURATION_COLORS[index % DURATION_COLORS.length]} />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
