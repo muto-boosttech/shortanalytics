@@ -254,7 +254,7 @@ export default function DashboardPage() {
                         />
                         <Tooltip
                           formatter={(value) => [
-                            `${(Number(value) * 100).toFixed(2)}%`,
+                            `${(Number(value || 0) * 100).toFixed(2)}%`,
                             "ER",
                           ]}
                           contentStyle={{ fontSize: 12 }}
@@ -300,7 +300,7 @@ export default function DashboardPage() {
                           axisLine={false}
                         />
                         <Tooltip
-                          formatter={(value) => [formatNumber(Number(value)), "再生数"]}
+                          formatter={(value) => [formatNumber(Number(value || 0)), "再生数"]}
                           contentStyle={{ fontSize: 12 }}
                         />
                         <Bar dataKey="totalViews" radius={[0, 4, 4, 0]}>
@@ -364,7 +364,7 @@ export default function DashboardPage() {
                           formatter={(value, _name, props) => {
                             const count = props?.payload?.count || 0;
                             return [
-                              `${(Number(value) * 100).toFixed(2)}% (${count}件)`,
+                              `${(Number(value || 0) * 100).toFixed(2)}% (${count}件)`,
                               "ER",
                             ];
                           }}
