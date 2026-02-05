@@ -175,20 +175,20 @@ export default function DashboardPage() {
           <>
             {/* Data Range Info */}
             {dashboardData?.dataRange && (
-              <Card className="bg-gray-50">
-                <CardContent className="py-3">
-                  <div className="flex items-center gap-6 text-sm text-gray-600">
+              <Card className="bg-gray-50 border-gray-200">
+                <CardContent className="py-4">
+                  <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-primary" />
-                      <span className="font-medium">投稿期間:</span>
-                      <span>
+                      <span className="font-medium text-gray-700">投稿期間:</span>
+                      <span className="text-gray-600">
                         {formatDate(dashboardData.dataRange.postedFrom)} 〜 {formatDate(dashboardData.dataRange.postedTo)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-accent" />
-                      <span className="font-medium">収集期間:</span>
-                      <span>
+                      <span className="font-medium text-gray-700">収集期間:</span>
+                      <span className="text-gray-600">
                         {formatDate(dashboardData.dataRange.collectedFrom)} 〜 {formatDate(dashboardData.dataRange.collectedTo)}
                       </span>
                     </div>
@@ -214,32 +214,43 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            {/* Charts */}
-            <div className="grid gap-6 lg:grid-cols-2">
+            {/* Charts - 3 Column Layout */}
+            <div className="grid gap-6 lg:grid-cols-3">
               {/* Content Type ER Chart */}
               <Card>
-                <CardHeader>
-                  <CardTitle>コンテンツ類型別エンゲージメント率</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">コンテンツ類型別ER</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[300px]">
+                  <div className="h-[280px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={dashboardData?.charts.contentTypeStats || []}
                         layout="vertical"
-                        margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+                        margin={{ top: 5, right: 20, left: 5, bottom: 5 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" />
+                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                         <XAxis
                           type="number"
-                          tickFormatter={(value) => `${(value * 100).toFixed(1)}%`}
+                          tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+                          fontSize={11}
+                          tickLine={false}
+                          axisLine={false}
                         />
-                        <YAxis dataKey="type" type="category" width={80} />
+                        <YAxis 
+                          dataKey="type" 
+                          type="category" 
+                          width={70} 
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                        />
                         <Tooltip
                           formatter={(value) => [
                             `${(Number(value) * 100).toFixed(2)}%`,
                             "ER",
                           ]}
+                          contentStyle={{ fontSize: 12 }}
                         />
                         <Bar dataKey="avgEngagement" fill="#6366F1" radius={[0, 4, 4, 0]} />
                       </BarChart>
@@ -248,56 +259,75 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              {/* Hook Type Views Chart */}
+              {/* Hook Type Views Chart - Changed to Horizontal Bar */}
               <Card>
-                <CardHeader>
-                  <CardTitle>フック別再生数</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">フック別再生数</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[300px]">
+                  <div className="h-[280px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={dashboardData?.charts.hookTypeStats || []}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 60 }}
+                        layout="vertical"
+                        margin={{ top: 5, right: 20, left: 5, bottom: 5 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" />
+                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                         <XAxis
-                          dataKey="type"
-                          angle={-45}
-                          textAnchor="end"
-                          height={60}
-                          interval={0}
+                          type="number"
+                          tickFormatter={(value) => formatNumber(value)}
+                          fontSize={11}
+                          tickLine={false}
+                          axisLine={false}
                         />
-                        <YAxis tickFormatter={(value) => formatNumber(value)} />
+                        <YAxis 
+                          dataKey="type" 
+                          type="category" 
+                          width={85} 
+                          fontSize={11}
+                          tickLine={false}
+                          axisLine={false}
+                        />
                         <Tooltip
                           formatter={(value) => [formatNumber(Number(value)), "再生数"]}
+                          contentStyle={{ fontSize: 12 }}
                         />
-                        <Bar dataKey="totalViews" fill="#EC4899" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="totalViews" fill="#EC4899" radius={[0, 4, 4, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Duration Category ER Chart - Horizontal Bar */}
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle>動画尺別エンゲージメント率</CardTitle>
+              {/* Duration Category ER Chart */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">動画尺別ER</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[250px]">
+                  <div className="h-[280px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={sortedDurationStats}
                         layout="vertical"
-                        margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+                        margin={{ top: 5, right: 20, left: 5, bottom: 5 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" />
+                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                         <XAxis
                           type="number"
-                          tickFormatter={(value) => `${(value * 100).toFixed(1)}%`}
+                          tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+                          fontSize={11}
+                          tickLine={false}
+                          axisLine={false}
                         />
-                        <YAxis dataKey="category" type="category" width={80} />
+                        <YAxis 
+                          dataKey="category" 
+                          type="category" 
+                          width={60} 
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                        />
                         <Tooltip
                           formatter={(value, _name, props) => {
                             const count = props?.payload?.count || 0;
@@ -306,6 +336,7 @@ export default function DashboardPage() {
                               "ER",
                             ];
                           }}
+                          contentStyle={{ fontSize: 12 }}
                         />
                         <Bar dataKey="avgEngagement" fill="#10B981" radius={[0, 4, 4, 0]} />
                       </BarChart>
