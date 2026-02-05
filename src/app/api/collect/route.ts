@@ -26,24 +26,25 @@ interface ApifyVideoItem {
 // POST /api/collect - Apify TikTok Hashtag Scraperを使用して動画を収集
 export async function POST(request: NextRequest) {
   try {
-    const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN;
+    const body = await request.json();
+    const { hashtags, industryId, resultsPerPage = 30, apiToken } = body;
+
+    // UIから渡されたトークンまたは環境変数のトークンを使用
+    const APIFY_API_TOKEN = apiToken || process.env.APIFY_API_TOKEN;
 
     if (!APIFY_API_TOKEN) {
       return NextResponse.json(
         {
           success: false,
-          error: "APIFY_API_TOKEN is not configured. Please set the environment variable.",
+          error: "APIFY_API_TOKENが設定されていません。環境変数を設定するか、UIからトークンを入力してください。",
         },
         { status: 500 }
       );
     }
 
-    const body = await request.json();
-    const { hashtags, industryId, resultsPerPage = 30 } = body;
-
     if (!hashtags || !Array.isArray(hashtags) || hashtags.length === 0) {
       return NextResponse.json(
-        { success: false, error: "Hashtags array is required" },
+        { success: false, error: "ハッシュタグの配列が必要です" },
         { status: 400 }
       );
     }
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
 
       if (!industry) {
         return NextResponse.json(
-          { success: false, error: "Industry not found" },
+          { success: false, error: "業種が見つかりません" },
           { status: 404 }
         );
       }
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
 
       if (!apifyResponse.ok) {
         const errorText = await apifyResponse.text();
-        throw new Error(`Apify API error: ${apifyResponse.status} - ${errorText}`);
+        throw new Error(`Apify APIエラー: ${apifyResponse.status} - ${errorText}`);
       }
 
       const apifyData: ApifyVideoItem[] = await apifyResponse.json();
@@ -205,7 +206,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: `Failed to collect videos: ${(error as Error).message}`,
+        error: `動画の収集に失敗しました: ${(error as Error).message}`,
       },
       { status: 500 }
     );
