@@ -2,7 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import prisma from "@/lib/prisma";
 
-const openai = new OpenAI();
+// OpenAI clientは遅延初期化（ビルド時のエラーを回避）
+let openaiClient: OpenAI | null = null;
+
+function getOpenAIClient() {
+  if (!openaiClient) {
+    openaiClient = new OpenAI();
+  }
+  return openaiClient;
+}
 
 // POST /api/ai-assist - AIによるデータ分析と提案を生成
 export async function POST(request: NextRequest) {
@@ -89,6 +97,7 @@ ${i + 1}位:
       );
     }
 
+    const openai = getOpenAIClient();
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
       messages: [
