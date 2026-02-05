@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -8,7 +9,6 @@ import {
   Trophy,
   Database,
   Settings,
-  Zap,
   X,
 } from "lucide-react";
 
@@ -45,10 +45,16 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-16 items-center justify-between border-b px-4">
-          <div className="flex items-center gap-2">
-            <Zap className="h-7 w-7 text-primary" />
-            <span className="text-lg font-bold text-primary">SHORTBOOSTER</span>
+        <div className="flex h-16 items-center justify-between border-b px-3">
+          <div className="flex items-center">
+            <Image 
+              src="/logo.png" 
+              alt="BOOSTTECH 縦型ショート動画分析" 
+              width={180}
+              height={40}
+              className="h-10 w-auto object-contain"
+              priority
+            />
           </div>
           {/* モバイル用閉じるボタン */}
           <button 

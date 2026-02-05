@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,13 +45,16 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* ロゴ */}
         <div className="text-center mb-6 sm:mb-8">
-          <div className="inline-flex items-center gap-2 mb-3 sm:mb-4">
-            <svg className="w-8 h-8 sm:w-10 sm:h-10 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            <span className="text-xl sm:text-2xl font-bold text-indigo-600">SHORTBOOSTER</span>
+          <div className="flex justify-center mb-4">
+            <Image 
+              src="/logo.png" 
+              alt="BOOSTTECH 縦型ショート動画分析" 
+              width={280}
+              height={60}
+              className="h-14 sm:h-16 w-auto object-contain"
+              priority
+            />
           </div>
-          <h1 className="text-lg sm:text-xl font-semibold text-gray-700">Creative Analyzer</h1>
         </div>
 
         {/* ログインフォーム */}
@@ -120,7 +124,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-gray-500 text-xs sm:text-sm mt-4 sm:mt-6">
-          © 2026 SHORTBOOSTER. All rights reserved.
+          © 2026 BOOSTTECH. All rights reserved.
         </p>
       </div>
     </div>
