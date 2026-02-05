@@ -94,15 +94,14 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // ハッシュタグの処理
-        let hashtags: string | null = null;
+        // ハッシュタグの処理（PostgreSQL配列として保存）
+        let hashtagsArray: string[] = [];
         if (row.hashtags) {
           // カンマ区切りまたはスペース区切りを配列に変換
-          const hashtagArray = row.hashtags
+          hashtagsArray = row.hashtags
             .split(/[,\s]+/)
             .map((h) => h.trim().replace(/^#/, ""))
             .filter((h) => h.length > 0);
-          hashtags = JSON.stringify(hashtagArray);
         }
 
         // UPSERTを実行
@@ -116,7 +115,7 @@ export async function POST(request: NextRequest) {
             data: {
               videoUrl: row.video_url || existing.videoUrl,
               description: row.description || existing.description,
-              hashtags: hashtags || existing.hashtags,
+              hashtags: hashtagsArray.length > 0 ? hashtagsArray : existing.hashtags,
               viewCount,
               likeCount,
               commentCount,
@@ -139,7 +138,7 @@ export async function POST(request: NextRequest) {
               tiktokVideoId: row.tiktok_video_id,
               videoUrl: row.video_url || null,
               description: row.description || null,
-              hashtags,
+              hashtags: hashtagsArray,
               viewCount,
               likeCount,
               commentCount,
