@@ -104,30 +104,43 @@ export async function PUT() {
   }
 }
 
+// 業種とハッシュタグのマッピング
+const industryHashtagMapping: Record<number, string[]> = {
+  11: ["フィットネス", "筋トレ", "ダイエット", "ジム", "ワークアウト", "ボディメイク", "bodymakeup", "body", "workout", "fitness"],
+  12: ["エンタメ", "お笑い", "ダンス", "映画", "音楽", "ゲーム", "entertainment", "dance", "music", "game"],
+  13: ["ファッション", "OOTD", "コーデ", "着回し", "プチプラ", "トレンド", "fashion", "outfit", "style"],
+  14: ["不動産", "マイホーム", "賃貸", "ルームツアー", "インテリア", "物件", "realestate", "room", "interior"],
+  15: ["教育", "勉強", "学習", "英語", "受験", "資格", "study", "education", "learning"],
+  16: ["EC", "ショッピング", "購入品", "通販", "レビュー", "おすすめ商品", "shopping", "review"],
+  17: ["グルメ", "料理", "レシピ", "カフェ", "食べ歩き", "おうちごはん", "food", "recipe", "cafe"],
+  18: ["美容", "コスメ", "スキンケア", "メイク", "美肌", "化粧品", "beauty", "skincare", "makeup"],
+  19: ["旅行", "トラベル", "国内旅行", "海外旅行", "観光", "絶景", "travel", "trip", "tourism"],
+  20: ["医療", "健康", "ヘルスケア", "病院", "予防", "医師", "health", "medical", "healthcare"],
+};
+
+function detectIndustryFromHashtags(hashtags: string[]): number | null {
+  const hashtagsLower = hashtags.map(h => h.toLowerCase());
+  
+  for (const [industryId, keywords] of Object.entries(industryHashtagMapping)) {
+    for (const keyword of keywords) {
+      if (hashtagsLower.some(h => h.includes(keyword.toLowerCase()))) {
+        return parseInt(industryId);
+      }
+    }
+  }
+  return null;
+}
+
 // POST /api/videos/auto-tag - 動画に自動タグ付け
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { videoIds, industryId } = body;
-
-    if (!industryId) {
-      return NextResponse.json(
-        { success: false, error: "Industry ID is required" },
-        { status: 400 }
-      );
+    let body = {};
+    try {
+      body = await request.json();
+    } catch {
+      // bodyがない場合は空オブジェクト
     }
-
-    // 業種の存在確認
-    const industry = await prisma.industry.findUnique({
-      where: { id: industryId },
-    });
-
-    if (!industry) {
-      return NextResponse.json(
-        { success: false, error: "Industry not found" },
-        { status: 404 }
-      );
-    }
+    const { videoIds, industryId } = body as { videoIds?: number[]; industryId?: number };
 
     // 対象動画を取得
     let videos;
@@ -155,11 +168,18 @@ export async function POST(request: NextRequest) {
     for (const video of videos) {
       results.processed++;
 
+      // 業種を決定（指定があればそれを使用、なければハッシュタグから推定）
+      let targetIndustryId = industryId;
+      if (!targetIndustryId) {
+        const hashtags = Array.isArray(video.hashtags) ? video.hashtags : [];
+        targetIndustryId = detectIndustryFromHashtags(hashtags) || 11; // デフォルトはフィットネス
+      }
+
       // 既存のタグを確認
       const existingTag = await prisma.videoTag.findFirst({
         where: {
           videoId: video.id,
-          industryId,
+          industryId: targetIndustryId,
         },
       });
 
@@ -168,7 +188,7 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      const text = `${video.description || ""} ${video.hashtags || ""}`;
+      const text = `${video.description || ""} ${Array.isArray(video.hashtags) ? video.hashtags.join(" ") : ""}`;
 
       const contentType = detectTag(text, contentTypeRules);
       const hookType = detectTag(text, hookTypeRules);
@@ -180,7 +200,7 @@ export async function POST(request: NextRequest) {
       await prisma.videoTag.create({
         data: {
           videoId: video.id,
-          industryId,
+          industryId: targetIndustryId,
           contentType,
           hookType,
           durationCategory,
