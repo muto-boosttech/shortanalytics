@@ -56,9 +56,10 @@ interface DashboardData {
       totalViews: number;
       avgEngagement: number;
     }>;
-    durationStats: Array<{
+    durationCategoryStats: Array<{
       category: string;
       count: number;
+      totalViews: number;
       avgEngagement: number;
     }>;
   };
@@ -245,7 +246,7 @@ export default function DashboardPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={dashboardData?.charts.durationStats || []}
+                          data={dashboardData?.charts.durationCategoryStats || []}
                           cx="50%"
                           cy="50%"
                           labelLine={false}
@@ -258,7 +259,7 @@ export default function DashboardPage() {
                           dataKey="count"
                           nameKey="category"
                         >
-                          {(dashboardData?.charts.durationStats || []).map(
+                          {(dashboardData?.charts.durationCategoryStats || []).map(
                             (entry, index) => (
                               <Cell
                                 key={`cell-${index}`}
