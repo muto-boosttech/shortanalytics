@@ -38,7 +38,6 @@ export async function GET(request: NextRequest) {
       where.OR = [
         { description: { contains: search } },
         { authorUsername: { contains: search } },
-        { hashtags: { contains: search } },
       ];
     }
 
@@ -114,15 +113,10 @@ export async function GET(request: NextRequest) {
       prisma.video.count({ where }),
     ]);
 
-    // ハッシュタグをパース
-    const videosWithParsedHashtags = videos.map((video) => ({
-      ...video,
-      hashtags: video.hashtags ? JSON.parse(video.hashtags) : [],
-    }));
-
+    // hashtagsはPostgreSQL配列なのでそのまま返す
     return NextResponse.json({
       success: true,
-      data: videosWithParsedHashtags,
+      data: videos,
       pagination: {
         page,
         limit,
