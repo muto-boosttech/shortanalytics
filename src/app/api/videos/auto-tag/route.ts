@@ -66,6 +66,24 @@ function getDurationCategory(seconds: number | null): string {
   return "60秒以上";
 }
 
+// DELETE /api/videos/auto-tag - 全タグを削除
+export async function DELETE() {
+  try {
+    const result = await prisma.videoTag.deleteMany({});
+    return NextResponse.json({
+      success: true,
+      message: `${result.count}件のタグを削除しました`,
+      deleted: result.count,
+    });
+  } catch (error) {
+    console.error("Error deleting tags:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to delete tags" },
+      { status: 500 }
+    );
+  }
+}
+
 // PUT /api/videos/auto-tag - 既存タグの動画尺カテゴリを再計算
 export async function PUT() {
   try {
