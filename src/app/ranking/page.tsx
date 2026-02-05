@@ -26,6 +26,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { AIAssistCard } from "@/components/ai-assist-card";
 
 interface Industry {
   id: number;
@@ -260,6 +261,25 @@ export default function RankingPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* AI Assist Card */}
+        {!loading && videos.length > 0 && (
+          <AIAssistCard
+            type="ranking"
+            industryId={selectedIndustry !== "all" ? selectedIndustry : undefined}
+            data={{
+              topVideos: videos.slice(0, 10).map((v) => ({
+                description: v.description,
+                viewCount: v.viewCount,
+                engagementRate: v.engagementRate,
+                videoDurationSeconds: v.videoDurationSeconds,
+                contentType: v.videoTags?.[0]?.contentType,
+                hookType: v.videoTags?.[0]?.hookType,
+              })),
+            }}
+            title="トップ動画の成功パターン"
+          />
+        )}
 
         {/* Video Cards */}
         {loading ? (

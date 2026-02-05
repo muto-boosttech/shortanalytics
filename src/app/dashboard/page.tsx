@@ -22,6 +22,7 @@ import {
   Cell,
 } from "recharts";
 import { Calendar, Eye, Heart, TrendingUp, Video } from "lucide-react";
+import { AIAssistCard } from "@/components/ai-assist-card";
 
 interface Industry {
   id: number;
@@ -311,6 +312,23 @@ export default function DashboardPage() {
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
+              </Card>
+
+              {/* AI Assist Card */}
+              <Card className="lg:col-span-2 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200">
+                <AIAssistCard
+                  type="dashboard"
+                  industryId={selectedIndustry}
+                  data={{
+                    totalVideos: dashboardData?.kpi.totalVideos || 0,
+                    totalViews: dashboardData?.kpi.totalViews || 0,
+                    avgEngagementRate: dashboardData?.kpi.avgEngagementRate || 0,
+                    contentTypeStats: dashboardData?.charts.contentTypeStats || [],
+                    hookTypeStats: dashboardData?.charts.hookTypeStats || [],
+                    durationStats: sortedDurationStats,
+                  }}
+                  title="伸びる投稿の特徴"
+                />
               </Card>
 
               {/* Duration Category ER Chart - Full Width */}
