@@ -177,7 +177,7 @@ async function main() {
         tiktokVideoId: `dummy_video_${i + 1}_${Date.now()}`,
         videoUrl: `https://www.tiktok.com/@user${randomInt(1, 1000)}/video/${randomInt(1000000000, 9999999999)}`,
         description: generateDescription(industry.slug),
-        hashtags: JSON.stringify(hashtags.slice(0, randomInt(2, 4))),
+        hashtags: hashtags.slice(0, randomInt(2, 4)),
         viewCount,
         likeCount,
         commentCount,

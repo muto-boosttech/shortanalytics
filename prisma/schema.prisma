@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL_UNPOOLED")
 }
 
 // 1. industries - 業種マスタ
@@ -43,7 +43,7 @@ model Video {
   tiktokVideoId        String    @unique @map("tiktok_video_id")
   videoUrl             String?   @map("video_url")
   description          String?
-  hashtags             String?   // JSON array stored as string for SQLite
+  hashtags             String[]  // PostgreSQL native array
   viewCount            Int       @default(0) @map("view_count")
   likeCount            Int       @default(0) @map("like_count")
   commentCount         Int       @default(0) @map("comment_count")
@@ -89,8 +89,8 @@ model Benchmark {
   periodEnd         DateTime @map("period_end")
   avgEngagementRate Float    @default(0) @map("avg_engagement_rate")
   medianViewCount   Int      @default(0) @map("median_view_count")
-  topContentTypes   String?  @map("top_content_types") // JSON stored as string
-  topHookTypes      String?  @map("top_hook_types") // JSON stored as string
+  topContentTypes   Json?    @map("top_content_types") @db.JsonB
+  topHookTypes      Json?    @map("top_hook_types") @db.JsonB
   sampleSize        Int      @default(0) @map("sample_size")
   calculatedAt      DateTime @default(now()) @map("calculated_at")
 
