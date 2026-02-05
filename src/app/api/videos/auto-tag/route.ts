@@ -59,10 +59,49 @@ function detectTag(text: string, rules: Record<string, string[]>): string | null
 }
 
 function getDurationCategory(seconds: number | null): string {
-  if (!seconds) return "medium";
-  if (seconds <= 15) return "short";
-  if (seconds <= 30) return "medium";
-  return "long";
+  if (!seconds) return "〜60秒";
+  if (seconds <= 15) return "〜15秒";
+  if (seconds <= 30) return "〜30秒";
+  if (seconds <= 60) return "〜60秒";
+  return "60秒以上";
+}
+
+// PUT /api/videos/auto-tag - 既存タグの動画尺カテゴリを再計算
+export async function PUT() {
+  try {
+    // 全てのvideo_tagsを取得して動画尺カテゴリを更新
+    const videoTags = await prisma.videoTag.findMany({
+      include: {
+        video: true,
+      },
+    });
+
+    let updated = 0;
+    for (const tag of videoTags) {
+      const newDurationCategory = getDurationCategory(tag.video.videoDurationSeconds);
+      if (tag.durationCategory !== newDurationCategory) {
+        await prisma.videoTag.update({
+          where: { id: tag.id },
+          data: { durationCategory: newDurationCategory },
+        });
+        updated++;
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        total: videoTags.length,
+        updated,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating duration categories:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to update duration categories" },
+      { status: 500 }
+    );
+  }
 }
 
 // POST /api/videos/auto-tag - 動画に自動タグ付け

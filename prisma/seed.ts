@@ -199,9 +199,11 @@ async function main() {
   // video_tagsを作成
   for (const { video, industry } of videos) {
     const duration = video.videoDurationSeconds || 30;
-    let durationCategory = "medium";
-    if (duration <= 15) durationCategory = "short";
-    else if (duration > 30) durationCategory = "long";
+    let durationCategory = "〜60秒";
+    if (duration <= 15) durationCategory = "〜15秒";
+    else if (duration <= 30) durationCategory = "〜30秒";
+    else if (duration <= 60) durationCategory = "〜60秒";
+    else durationCategory = "60秒以上";
 
     await prisma.videoTag.create({
       data: {
