@@ -19,12 +19,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
 } from "recharts";
-import { Eye, Heart, TrendingUp, Video } from "lucide-react";
+import { Calendar, Eye, Heart, TrendingUp, Video } from "lucide-react";
 
 interface Industry {
   id: number;
@@ -63,9 +59,16 @@ interface DashboardData {
       avgEngagement: number;
     }>;
   };
+  dataRange: {
+    postedFrom: string | null;
+    postedTo: string | null;
+    collectedFrom: string | null;
+    collectedTo: string | null;
+  };
 }
 
-const COLORS = ["#6366F1", "#EC4899", "#10B981", "#F59E0B", "#8B5CF6", "#06B6D4"];
+// 動画尺カテゴリの表示順序
+const DURATION_ORDER = ["〜15秒", "〜30秒", "〜60秒", "60秒以上"];
 
 export default function DashboardPage() {
   const [industries, setIndustries] = useState<Industry[]>([]);
@@ -129,6 +132,22 @@ export default function DashboardPage() {
       ]
     : [];
 
+  // 動画尺カテゴリを指定順序でソート
+  const sortedDurationStats = dashboardData?.charts.durationCategoryStats
+    ? [...dashboardData.charts.durationCategoryStats].sort((a, b) => {
+        const indexA = DURATION_ORDER.indexOf(a.category);
+        const indexB = DURATION_ORDER.indexOf(b.category);
+        return indexA - indexB;
+      })
+    : [];
+
+  // 日付フォーマット関数
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "-";
+    const date = new Date(dateStr);
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -154,6 +173,30 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
+            {/* Data Range Info */}
+            {dashboardData?.dataRange && (
+              <Card className="bg-gray-50">
+                <CardContent className="py-3">
+                  <div className="flex items-center gap-6 text-sm text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      <span className="font-medium">投稿期間:</span>
+                      <span>
+                        {formatDate(dashboardData.dataRange.postedFrom)} 〜 {formatDate(dashboardData.dataRange.postedTo)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-accent" />
+                      <span className="font-medium">収集期間:</span>
+                      <span>
+                        {formatDate(dashboardData.dataRange.collectedFrom)} 〜 {formatDate(dashboardData.dataRange.collectedTo)}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* KPI Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {kpiCards.map((card) => (
@@ -236,50 +279,36 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              {/* Duration Category ER Chart */}
+              {/* Duration Category ER Chart - Horizontal Bar */}
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle>動画尺別エンゲージメント率</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[300px]">
+                  <div className="h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={dashboardData?.charts.durationCategoryStats || []}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, payload }) => {
-                            const data = payload as { avgEngagement?: number };
-                            return `${name}: ${((data?.avgEngagement ?? 0) * 100).toFixed(1)}%`;
-                          }}
-                          outerRadius={100}
-                          fill="#8884d8"
-                          dataKey="count"
-                          nameKey="category"
-                        >
-                          {(dashboardData?.charts.durationCategoryStats || []).map(
-                            (entry, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={COLORS[index % COLORS.length]}
-                              />
-                            )
-                          )}
-                        </Pie>
+                      <BarChart
+                        data={sortedDurationStats}
+                        layout="vertical"
+                        margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          type="number"
+                          tickFormatter={(value) => `${(value * 100).toFixed(1)}%`}
+                        />
+                        <YAxis dataKey="category" type="category" width={80} />
                         <Tooltip
-                          formatter={(value, name, props) => {
-                            const payload = props?.payload as { avgEngagement?: number } | undefined;
-                            const avgEngagement = payload?.avgEngagement ?? 0;
+                          formatter={(value, _name, props) => {
+                            const count = props?.payload?.count || 0;
                             return [
-                              `${value}件 (ER: ${(avgEngagement * 100).toFixed(2)}%)`,
-                              name,
+                              `${(Number(value) * 100).toFixed(2)}% (${count}件)`,
+                              "ER",
                             ];
                           }}
                         />
-                        <Legend />
-                      </PieChart>
+                        <Bar dataKey="avgEngagement" fill="#10B981" radius={[0, 4, 4, 0]} />
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </CardContent>

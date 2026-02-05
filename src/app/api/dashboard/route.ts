@@ -120,6 +120,21 @@ export async function GET(request: NextRequest) {
       dailyTrend[key].engagement /= dailyTrend[key].videos;
     }
 
+    // データ収集期間を計算
+    const postedDates = videos
+      .filter((v) => v.postedAt)
+      .map((v) => v.postedAt!.getTime());
+    const collectedDates = videos
+      .filter((v) => v.collectedAt)
+      .map((v) => v.collectedAt!.getTime());
+
+    const dataRange = {
+      postedFrom: postedDates.length > 0 ? new Date(Math.min(...postedDates)).toISOString().split("T")[0] : null,
+      postedTo: postedDates.length > 0 ? new Date(Math.max(...postedDates)).toISOString().split("T")[0] : null,
+      collectedFrom: collectedDates.length > 0 ? new Date(Math.min(...collectedDates)).toISOString().split("T")[0] : null,
+      collectedTo: collectedDates.length > 0 ? new Date(Math.max(...collectedDates)).toISOString().split("T")[0] : null,
+    };
+
     // トップ動画
     const topVideosByViews = [...videos]
       .sort((a, b) => b.viewCount - a.viewCount)
@@ -176,6 +191,7 @@ export async function GET(request: NextRequest) {
           byViews: topVideosByViews,
           byEngagement: topVideosByEngagement,
         },
+        dataRange,
       },
     });
   } catch (error) {
