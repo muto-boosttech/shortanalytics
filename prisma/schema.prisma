@@ -1,0 +1,130 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 1. industries - 業種マスタ
+model Industry {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  hashtags       IndustryHashtag[]
+  videoTags      VideoTag[]
+  benchmarks     Benchmark[]
+  collectionLogs CollectionLog[]
+
+  @@map("industries")
+}
+
+// 2. industry_hashtags - 業種別ハッシュタグ
+model IndustryHashtag {
+  id         Int      @id @default(autoincrement())
+  industryId Int      @map("industry_id")
+  hashtag    String
+  isActive   Boolean  @default(true) @map("is_active")
+
+  industry Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  @@map("industry_hashtags")
+}
+
+// 3. videos - 動画データ
+model Video {
+  id                   Int       @id @default(autoincrement())
+  tiktokVideoId        String    @unique @map("tiktok_video_id")
+  videoUrl             String?   @map("video_url")
+  description          String?
+  hashtags             String?   // JSON array stored as string for SQLite
+  viewCount            Int       @default(0) @map("view_count")
+  likeCount            Int       @default(0) @map("like_count")
+  commentCount         Int       @default(0) @map("comment_count")
+  shareCount           Int       @default(0) @map("share_count")
+  engagementRate       Float     @default(0) @map("engagement_rate")
+  videoDurationSeconds Int?      @map("video_duration_seconds")
+  authorUsername       String?   @map("author_username")
+  authorFollowerCount  Int?      @map("author_follower_count")
+  postedAt             DateTime? @map("posted_at")
+  thumbnailUrl         String?   @map("thumbnail_url")
+  collectedAt          DateTime  @default(now()) @map("collected_at")
+  source               String?
+
+  videoTags VideoTag[]
+
+  @@map("videos")
+}
+
+// 4. video_tags - 動画タグ（分析用）
+model VideoTag {
+  id               Int      @id @default(autoincrement())
+  videoId          Int      @map("video_id")
+  industryId       Int      @map("industry_id")
+  contentType      String?  @map("content_type")
+  hookType         String?  @map("hook_type")
+  durationCategory String?  @map("duration_category")
+  performerType    String?  @map("performer_type")
+  tone             String?
+  ctaType          String?  @map("cta_type")
+  taggedAt         DateTime @default(now()) @map("tagged_at")
+
+  video    Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  industry Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  @@map("video_tags")
+}
+
+// 5. benchmarks - ベンチマークデータ
+model Benchmark {
+  id                Int      @id @default(autoincrement())
+  industryId        Int      @map("industry_id")
+  periodStart       DateTime @map("period_start")
+  periodEnd         DateTime @map("period_end")
+  avgEngagementRate Float    @default(0) @map("avg_engagement_rate")
+  medianViewCount   Int      @default(0) @map("median_view_count")
+  topContentTypes   String?  @map("top_content_types") // JSON stored as string
+  topHookTypes      String?  @map("top_hook_types") // JSON stored as string
+  sampleSize        Int      @default(0) @map("sample_size")
+  calculatedAt      DateTime @default(now()) @map("calculated_at")
+
+  industry Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
+  @@map("benchmarks")
+}
+
+// 6. collection_logs - 収集ログ
+model CollectionLog {
+  id              Int       @id @default(autoincrement())
+  industryId      Int?      @map("industry_id")
+  hashtag         String?
+  apifyRunId      String?   @map("apify_run_id")
+  videosCollected Int       @default(0) @map("videos_collected")
+  videosNew       Int       @default(0) @map("videos_new")
+  videosUpdated   Int       @default(0) @map("videos_updated")
+  status          String    @default("pending")
+  startedAt       DateTime  @default(now()) @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  errorMessage    String?   @map("error_message")
+
+  industry Industry? @relation(fields: [industryId], references: [id], onDelete: SetNull)
+
+  @@map("collection_logs")
+}
+
+// 7. profiles - ユーザープロファイル
+model Profile {
+  id          Int      @id @default(autoincrement())
+  email       String   @unique
+  displayName String?  @map("display_name")
+  companyName String?  @map("company_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("profiles")
+}
