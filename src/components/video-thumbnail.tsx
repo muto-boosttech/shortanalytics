@@ -16,7 +16,7 @@ interface VideoThumbnailProps {
  * 
  * 優先順位:
  * 1. DBに保存されたthumbnailUrl
- * 2. TikTok oEmbed APIから取得したサムネイル
+ * 2. サーバーサイドAPIを通じてTikTok oEmbedから取得
  * 3. グラデーションプレースホルダー
  */
 export function VideoThumbnail({
@@ -26,8 +26,8 @@ export function VideoThumbnail({
   className = "",
   showPlayIcon = true,
 }: VideoThumbnailProps) {
-  const [imgSrc, setImgSrc] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [imgSrc, setImgSrc] = useState<string | null>(thumbnailUrl || null);
+  const [isLoading, setIsLoading] = useState(!thumbnailUrl);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
@@ -38,23 +38,20 @@ export function VideoThumbnail({
       return;
     }
 
-    // サムネイルURLがない場合はoEmbed APIを試行
+    // サムネイルURLがない場合はサーバーサイドAPIを通じて取得
     const fetchThumbnail = async () => {
       try {
-        const videoUrl = `https://www.tiktok.com/@user/video/${videoId}`;
-        const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(videoUrl)}`;
-        
-        const response = await fetch(oembedUrl);
+        const response = await fetch(`/api/thumbnail?videoId=${videoId}`);
         if (response.ok) {
           const data = await response.json();
-          if (data.thumbnail_url) {
-            setImgSrc(data.thumbnail_url);
+          if (data.thumbnailUrl) {
+            setImgSrc(data.thumbnailUrl);
             setIsLoading(false);
             return;
           }
         }
       } catch (error) {
-        console.log("oEmbed fetch failed:", error);
+        console.log("Thumbnail fetch failed:", error);
       }
       
       // 取得失敗時はプレースホルダーを表示
@@ -64,21 +61,6 @@ export function VideoThumbnail({
 
     fetchThumbnail();
   }, [videoId, thumbnailUrl]);
-
-  // プレースホルダーSVG
-  const placeholderSvg = `data:image/svg+xml,${encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="270" height="480" viewBox="0 0 270 480">
-      <defs>
-        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#6366F1;stop-opacity:1" />
-          <stop offset="100%" style="stop-color:#EC4899;stop-opacity:1" />
-        </linearGradient>
-      </defs>
-      <rect width="270" height="480" fill="url(#grad)"/>
-      <text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" fill="white" font-family="sans-serif" font-size="24" font-weight="bold">TikTok</text>
-      <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-family="sans-serif" font-size="14">動画</text>
-    </svg>
-  `.trim())}`;
 
   const handleError = () => {
     setHasError(true);
