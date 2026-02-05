@@ -36,15 +36,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // ハッシュタグをパース
-    const videoWithParsedHashtags = {
-      ...video,
-      hashtags: video.hashtags ? JSON.parse(video.hashtags) : [],
-    };
-
+    // hashtagsはPostgreSQL配列なのでそのまま返す
     return NextResponse.json({
       success: true,
-      data: videoWithParsedHashtags,
+      data: video,
     });
   } catch (error) {
     console.error("Error fetching video:", error);

@@ -19,11 +19,19 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // JSONフィールドをパース
+    // JSONフィールドをパース（型安全に処理）
     const parsedBenchmarks = benchmarks.map((b) => ({
       ...b,
-      topContentTypes: b.topContentTypes ? JSON.parse(b.topContentTypes) : [],
-      topHookTypes: b.topHookTypes ? JSON.parse(b.topHookTypes) : [],
+      topContentTypes: b.topContentTypes 
+        ? (typeof b.topContentTypes === 'string' 
+            ? JSON.parse(b.topContentTypes) 
+            : b.topContentTypes)
+        : [],
+      topHookTypes: b.topHookTypes 
+        ? (typeof b.topHookTypes === 'string' 
+            ? JSON.parse(b.topHookTypes) 
+            : b.topHookTypes)
+        : [],
     }));
 
     return NextResponse.json({

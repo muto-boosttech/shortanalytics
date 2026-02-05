@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         const engagementRate =
           viewCount > 0 ? (likeCount + commentCount + shareCount) / viewCount : 0;
 
-        // ハッシュタグを配列として保存
+        // ハッシュタグを配列として保存（PostgreSQL配列）
         const hashtagsArray = item.hashtags?.map((h) => h.name) || [];
 
         // 投稿日時をUnixタイムスタンプから変換
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
             data: {
               videoUrl: item.webVideoUrl,
               description: item.text,
-              hashtags: JSON.stringify(hashtagsArray),
+              hashtags: hashtagsArray,
               viewCount,
               likeCount,
               commentCount,
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
               tiktokVideoId: item.id,
               videoUrl: item.webVideoUrl,
               description: item.text,
-              hashtags: JSON.stringify(hashtagsArray),
+              hashtags: hashtagsArray,
               viewCount,
               likeCount,
               commentCount,
