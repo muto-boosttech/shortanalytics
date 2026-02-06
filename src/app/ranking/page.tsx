@@ -338,14 +338,21 @@ export default function RankingPage() {
           <AIAssistCard
             type="ranking"
             industryId={selectedIndustry !== "all" ? selectedIndustry : undefined}
+            platform={platform}
             data={{
-              topVideos: videos.slice(0, 10).map((v) => ({
+              allVideos: videos.map((v) => ({
                 description: v.description,
                 viewCount: v.viewCount,
+                likeCount: v.likeCount,
+                commentCount: v.commentCount,
+                shareCount: v.shareCount,
                 engagementRate: v.engagementRate,
                 videoDurationSeconds: v.videoDurationSeconds,
                 contentType: v.videoTags?.[0]?.contentType,
                 hookType: v.videoTags?.[0]?.hookType,
+                authorUsername: v.authorUsername,
+                postedAt: v.postedAt,
+                hashtags: v.hashtags,
               })),
             }}
             title="トップ動画の成功パターン"
