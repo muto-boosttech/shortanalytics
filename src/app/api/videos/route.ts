@@ -26,13 +26,16 @@ export async function GET(request: NextRequest) {
     const hookType = searchParams.get("hook_type");
     const durationCategory = searchParams.get("duration_category");
     const search = searchParams.get("search");
+    const platform = searchParams.get("platform") || "tiktok"; // 'tiktok' | 'youtube'
 
     // ソート
     const sortBy = searchParams.get("sort_by") || "collectedAt";
     const sortOrder = (searchParams.get("sort_order") || "desc") as "asc" | "desc";
 
     // Where条件の構築
-    const where: Prisma.VideoWhereInput = {};
+    const where: Prisma.VideoWhereInput = {
+      platform: platform,
+    };
 
     if (search) {
       where.OR = [

@@ -25,20 +25,20 @@ export async function GET(request: Request) {
       : "http://localhost:3000";
 
     const results = {
-      collections: [] as { industryId: number; industryName: string; status: string; videos?: number; retries?: number }[],
+      collections: [] as { industryId: number; industryName: string; platform: string; status: string; videos?: number; retries?: number }[],
       tagging: { processed: 0, tagged: 0 },
       thumbnails: { updated: 0 },
     };
 
-    // 1. 全業種の動画を収集
-    console.log("Starting daily data collection...");
+    // 1. 全業種の動画を収集（TikTok）
+    console.log("Starting daily TikTok data collection...");
     
     // 業種一覧を取得
     const industriesRes = await fetch(`${baseUrl}/api/industries`);
     const industriesData = await industriesRes.json();
     const industries = industriesData.data || [];
 
-    // 各業種の動画を収集（リトライ付き）
+    // 各業種のTikTok動画を収集（リトライ付き）
     for (const industry of industries) {
       let success = false;
       let lastError = null;
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
       
       for (let attempt = 1; attempt <= MAX_COLLECTION_RETRIES && !success; attempt++) {
         try {
-          console.log(`Collecting videos for ${industry.name} (attempt ${attempt}/${MAX_COLLECTION_RETRIES})...`);
+          console.log(`Collecting TikTok videos for ${industry.name} (attempt ${attempt}/${MAX_COLLECTION_RETRIES})...`);
           const collectRes = await fetch(`${baseUrl}/api/collect`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -58,6 +58,7 @@ export async function GET(request: Request) {
             results.collections.push({
               industryId: industry.id,
               industryName: industry.name,
+              platform: "tiktok",
               status: "success",
               videos: collectData.data?.videosNew || 0,
               retries: attempt - 1,
@@ -69,7 +70,7 @@ export async function GET(request: Request) {
         } catch (error) {
           lastError = error;
           retryCount = attempt;
-          console.error(`Error collecting for ${industry.name} (attempt ${attempt}):`, error);
+          console.error(`Error collecting TikTok for ${industry.name} (attempt ${attempt}):`, error);
           
           if (attempt < MAX_COLLECTION_RETRIES) {
             console.log(`Waiting ${RETRY_DELAY_MS / 1000}s before retry...`);
@@ -82,10 +83,69 @@ export async function GET(request: Request) {
         results.collections.push({
           industryId: industry.id,
           industryName: industry.name,
+          platform: "tiktok",
           status: "failed",
           retries: retryCount,
         });
-        console.error(`Failed to collect for ${industry.name} after ${MAX_COLLECTION_RETRIES} attempts`);
+        console.error(`Failed to collect TikTok for ${industry.name} after ${MAX_COLLECTION_RETRIES} attempts`);
+      }
+      
+      // API制限を避けるため少し待機
+      await delay(2000);
+    }
+
+    // 1.5. 全業種のYouTube Shortsを収集
+    console.log("Starting daily YouTube Shorts data collection...");
+    
+    for (const industry of industries) {
+      let success = false;
+      let lastError = null;
+      let retryCount = 0;
+      
+      for (let attempt = 1; attempt <= MAX_COLLECTION_RETRIES && !success; attempt++) {
+        try {
+          console.log(`Collecting YouTube Shorts for ${industry.name} (attempt ${attempt}/${MAX_COLLECTION_RETRIES})...`);
+          const collectRes = await fetch(`${baseUrl}/api/collect-youtube`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ industryId: industry.id }),
+          });
+          const collectData = await collectRes.json();
+          
+          if (collectData.success) {
+            results.collections.push({
+              industryId: industry.id,
+              industryName: industry.name,
+              platform: "youtube",
+              status: "success",
+              videos: collectData.data?.videosNew || 0,
+              retries: attempt - 1,
+            });
+            success = true;
+          } else {
+            throw new Error(collectData.error || "Collection failed");
+          }
+        } catch (error) {
+          lastError = error;
+          retryCount = attempt;
+          console.error(`Error collecting YouTube for ${industry.name} (attempt ${attempt}):`, error);
+          
+          if (attempt < MAX_COLLECTION_RETRIES) {
+            console.log(`Waiting ${RETRY_DELAY_MS / 1000}s before retry...`);
+            await delay(RETRY_DELAY_MS);
+          }
+        }
+      }
+      
+      if (!success) {
+        results.collections.push({
+          industryId: industry.id,
+          industryName: industry.name,
+          platform: "youtube",
+          status: "failed",
+          retries: retryCount,
+        });
+        console.error(`Failed to collect YouTube for ${industry.name} after ${MAX_COLLECTION_RETRIES} attempts`);
       }
       
       // API制限を避けるため少し待機
@@ -146,8 +206,9 @@ export async function GET(request: Request) {
       
       for (const failed of failedCollections) {
         try {
-          console.log(`Final retry for ${failed.industryName}...`);
-          const collectRes = await fetch(`${baseUrl}/api/collect`, {
+          const endpoint = failed.platform === "youtube" ? "/api/collect-youtube" : "/api/collect";
+          console.log(`Final retry for ${failed.industryName} (${failed.platform})...`);
+          const collectRes = await fetch(`${baseUrl}${endpoint}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ industryId: failed.industryId }),
@@ -156,7 +217,9 @@ export async function GET(request: Request) {
           
           if (collectData.success) {
             // 成功した場合、結果を更新
-            const index = results.collections.findIndex(c => c.industryId === failed.industryId);
+            const index = results.collections.findIndex(
+              c => c.industryId === failed.industryId && c.platform === failed.platform
+            );
             if (index !== -1) {
               results.collections[index] = {
                 ...results.collections[index],
@@ -166,7 +229,7 @@ export async function GET(request: Request) {
             }
           }
         } catch (error) {
-          console.error(`Final retry failed for ${failed.industryName}:`, error);
+          console.error(`Final retry failed for ${failed.industryName} (${failed.platform}):`, error);
         }
         await delay(5000);
       }

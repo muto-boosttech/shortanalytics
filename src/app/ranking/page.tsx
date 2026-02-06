@@ -28,6 +28,8 @@ import {
   Filter,
   ChevronDown,
   ChevronUp,
+  Video,
+  Youtube,
 } from "lucide-react";
 import { AIAssistCard } from "@/components/ai-assist-card";
 
@@ -98,6 +100,7 @@ export default function RankingPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+  const [platform, setPlatform] = useState<"tiktok" | "youtube">("tiktok");
 
   useEffect(() => {
     fetch("/api/industries")
@@ -129,6 +132,8 @@ export default function RankingPage() {
       params.append("hook_type", selectedHookTypes.join(","));
     }
 
+    params.append("platform", platform);
+
     fetch(`/api/videos?${params}`)
       .then((res) => res.json())
       .then((data) => {
@@ -138,7 +143,7 @@ export default function RankingPage() {
         }
         setLoading(false);
       });
-  }, [selectedIndustry, selectedContentTypes, selectedHookTypes, sortBy, page]);
+  }, [selectedIndustry, selectedContentTypes, selectedHookTypes, sortBy, page, platform]);
 
   useEffect(() => {
     fetchVideos();
@@ -170,7 +175,40 @@ export default function RankingPage() {
   return (
     <MainLayout>
       <div className="space-y-4 sm:space-y-6">
-        <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">ランキング</h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">ランキング</h1>
+          {/* Platform Toggle */}
+          <div className="flex rounded-lg border border-gray-200 bg-gray-100 p-1">
+            <button
+              onClick={() => {
+                setPlatform("tiktok");
+                setPage(1);
+              }}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+                platform === "tiktok"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <Video className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              TikTok
+            </button>
+            <button
+              onClick={() => {
+                setPlatform("youtube");
+                setPage(1);
+              }}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+                platform === "youtube"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <Youtube className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              YouTube
+            </button>
+          </div>
+        </div>
 
         {/* Filters */}
         <Card>

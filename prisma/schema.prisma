@@ -31,6 +31,7 @@ model IndustryHashtag {
   industryId Int      @map("industry_id")
   hashtag    String
   isActive   Boolean  @default(true) @map("is_active")
+  platform   String   @default("tiktok") // 'tiktok' | 'youtube'
 
   industry Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
 
@@ -56,6 +57,7 @@ model Video {
   thumbnailUrl         String?   @map("thumbnail_url")
   collectedAt          DateTime  @default(now()) @map("collected_at")
   source               String?
+  platform             String    @default("tiktok") // 'tiktok' | 'youtube'
 
   videoTags VideoTag[]
 
@@ -93,6 +95,7 @@ model Benchmark {
   topHookTypes      Json?    @map("top_hook_types") @db.JsonB
   sampleSize        Int      @default(0) @map("sample_size")
   calculatedAt      DateTime @default(now()) @map("calculated_at")
+  platform          String   @default("tiktok") // 'tiktok' | 'youtube'
 
   industry Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
 
@@ -112,6 +115,7 @@ model CollectionLog {
   startedAt       DateTime  @default(now()) @map("started_at")
   completedAt     DateTime? @map("completed_at")
   errorMessage    String?   @map("error_message")
+  platform        String    @default("tiktok") // 'tiktok' | 'youtube'
 
   industry Industry? @relation(fields: [industryId], references: [id], onDelete: SetNull)
 

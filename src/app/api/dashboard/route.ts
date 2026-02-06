@@ -7,14 +7,16 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const industryId = searchParams.get("industry_id");
     const period = searchParams.get("period") || "30"; // デフォルト30日
+    const platform = searchParams.get("platform") || "tiktok"; // 'tiktok' | 'youtube'
 
     const periodDays = parseInt(period);
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - periodDays);
 
     // フィルタ条件
-    const videoWhere: { postedAt?: { gte: Date }; videoTags?: { some: { industryId: number } } } = {
+    const videoWhere: { postedAt?: { gte: Date }; videoTags?: { some: { industryId: number } }; platform?: string } = {
       postedAt: { gte: startDate },
+      platform: platform,
     };
 
     if (industryId) {

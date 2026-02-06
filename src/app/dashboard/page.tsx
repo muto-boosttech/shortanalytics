@@ -21,7 +21,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { Calendar, Eye, Heart, TrendingUp, Video } from "lucide-react";
+import { Calendar, Eye, Heart, TrendingUp, Video, Youtube } from "lucide-react";
 import { AIAssistCard } from "@/components/ai-assist-card";
 
 interface Industry {
@@ -82,6 +82,7 @@ export default function DashboardPage() {
   const [selectedIndustry, setSelectedIndustry] = useState<string>("");
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [platform, setPlatform] = useState<"tiktok" | "youtube">("tiktok");
 
   useEffect(() => {
     fetch("/api/industries")
@@ -99,7 +100,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (selectedIndustry) {
       setLoading(true);
-      fetch(`/api/dashboard?industry_id=${selectedIndustry}`)
+      fetch(`/api/dashboard?industry_id=${selectedIndustry}&platform=${platform}`)
         .then((res) => res.json())
         .then((data) => {
           if (data.success) {
@@ -108,7 +109,7 @@ export default function DashboardPage() {
           setLoading(false);
         });
     }
-  }, [selectedIndustry]);
+  }, [selectedIndustry, platform]);
 
   const kpiCards = dashboardData
     ? [
@@ -168,18 +169,45 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">ダッシュボード</h1>
-          <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="業種を選択" />
-            </SelectTrigger>
-            <SelectContent>
-              {industries.map((industry) => (
-                <SelectItem key={industry.id} value={industry.id.toString()}>
-                  {industry.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            {/* Platform Toggle */}
+            <div className="flex rounded-lg border border-gray-200 bg-gray-100 p-1">
+              <button
+                onClick={() => setPlatform("tiktok")}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+                  platform === "tiktok"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <Video className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                TikTok
+              </button>
+              <button
+                onClick={() => setPlatform("youtube")}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+                  platform === "youtube"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <Youtube className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                YouTube
+              </button>
+            </div>
+            <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="業種を選択" />
+              </SelectTrigger>
+              <SelectContent>
+                {industries.map((industry) => (
+                  <SelectItem key={industry.id} value={industry.id.toString()}>
+                    {industry.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {loading ? (
