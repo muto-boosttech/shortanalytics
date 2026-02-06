@@ -34,6 +34,8 @@ import {
   Loader2,
   AlertCircle,
   FileText,
+  Video,
+  Youtube,
 } from "lucide-react";
 
 interface Industry {
@@ -60,6 +62,7 @@ interface CollectionLog {
   completedAt: string;
   errorMessage: string;
   industry: { name: string };
+  platform: string;
 }
 
 interface CollectionResult {
@@ -85,6 +88,7 @@ export default function CollectPage() {
   const [logs, setLogs] = useState<CollectionLog[]>([]);
   const [csvUploading, setCsvUploading] = useState(false);
   const [csvResult, setCsvResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [platform, setPlatform] = useState<"tiktok" | "youtube">("tiktok");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -182,7 +186,10 @@ export default function CollectPage() {
     }, 1000);
 
     try {
-      const response = await fetch("/api/collect", {
+      // プラットフォームに応じてAPIエンドポイントを選択
+      const endpoint = platform === "youtube" ? "/api/collect-youtube" : "/api/collect";
+      
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -199,7 +206,7 @@ export default function CollectPage() {
       if (data.success) {
         setResult({
           success: true,
-          message: "収集が完了しました",
+          message: `${platform === "youtube" ? "YouTube Shorts" : "TikTok"}の収集が完了しました`,
           data: {
             videosCollected: data.data.videosCollected,
             videosNew: data.data.videosNew,
@@ -274,10 +281,44 @@ export default function CollectPage() {
     }
   };
 
+  const getPlatformBadge = (platformValue: string) => {
+    if (platformValue === "youtube") {
+      return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">YouTube</Badge>;
+    }
+    return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">TikTok</Badge>;
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">データ収集</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">データ収集</h1>
+          {/* Platform Toggle */}
+          <div className="flex rounded-lg border border-gray-200 bg-gray-100 p-1">
+            <button
+              onClick={() => setPlatform("tiktok")}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+                platform === "tiktok"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <Video className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              TikTok
+            </button>
+            <button
+              onClick={() => setPlatform("youtube")}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+                platform === "youtube"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <Youtube className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              YouTube
+            </button>
+          </div>
+        </div>
 
         {/* API Token Input */}
         <Card>
@@ -315,7 +356,14 @@ export default function CollectPage() {
         {/* Collection Settings */}
         <Card>
           <CardHeader>
-            <CardTitle>収集設定</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              {platform === "youtube" ? (
+                <Youtube className="h-5 w-5 text-red-500" />
+              ) : (
+                <Video className="h-5 w-5" />
+              )}
+              {platform === "youtube" ? "YouTube Shorts" : "TikTok"} 収集設定
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -336,7 +384,7 @@ export default function CollectPage() {
 
             {selectedIndustry && (
               <div className="space-y-2">
-                <Label>ハッシュタグ</Label>
+                <Label>ハッシュタグ（検索キーワード）</Label>
                 <div className="flex flex-wrap gap-2">
                   {hashtags.map((h) => (
                     <Badge
@@ -347,7 +395,6 @@ export default function CollectPage() {
                     >
                       #{h.hashtag}
                       <button
-                        className="ml-1 hover:text-red-500"
                         onClick={(e) => {
                           e.stopPropagation();
                           removeHashtag(h.id, h.hashtag);
@@ -378,6 +425,7 @@ export default function CollectPage() {
               <Button
                 onClick={startCollection}
                 disabled={collecting || !selectedIndustry || selectedHashtags.length === 0}
+                className={platform === "youtube" ? "bg-red-600 hover:bg-red-700" : ""}
               >
                 {collecting ? (
                   <>
@@ -387,13 +435,13 @@ export default function CollectPage() {
                 ) : (
                   <>
                     <Play className="h-4 w-4" />
-                    収集開始
+                    {platform === "youtube" ? "YouTube Shorts" : "TikTok"} 収集開始
                   </>
                 )}
               </Button>
               {selectedHashtags.length > 0 && (
                 <span className="text-sm text-gray-500">
-                  {selectedHashtags.length}個のハッシュタグを収集
+                  {selectedHashtags.length}個のハッシュタグで収集
                 </span>
               )}
             </div>
@@ -522,6 +570,7 @@ export default function CollectPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>プラットフォーム</TableHead>
                   <TableHead>業種</TableHead>
                   <TableHead>ハッシュタグ</TableHead>
                   <TableHead>ステータス</TableHead>
@@ -534,15 +583,16 @@ export default function CollectPage() {
               <TableBody>
                 {logs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-gray-500">
+                    <TableCell colSpan={8} className="text-center text-gray-500">
                       収集ログがありません
                     </TableCell>
                   </TableRow>
                 ) : (
                   logs.map((log) => (
                     <TableRow key={log.id}>
+                      <TableCell>{getPlatformBadge(log.platform || "tiktok")}</TableCell>
                       <TableCell>{log.industry?.name || "-"}</TableCell>
-                      <TableCell>#{log.hashtag}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">#{log.hashtag}</TableCell>
                       <TableCell>{getStatusBadge(log.status)}</TableCell>
                       <TableCell>{log.videosCollected}</TableCell>
                       <TableCell className="text-green-600">{log.videosNew}</TableCell>

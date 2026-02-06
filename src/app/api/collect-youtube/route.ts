@@ -9,7 +9,9 @@ interface YouTubeVideoItem {
   viewCount: number;
   type: string;
   likes?: number;
+  numberOfLikes?: number;
   commentsCount?: number;
+  numberOfComments?: number;
   duration?: string;
   channelName?: string;
   channelUrl?: string;
@@ -17,6 +19,7 @@ interface YouTubeVideoItem {
   numberOfSubscribers?: number;
   date?: string;
   hashtags?: string[];
+  text?: string;
 }
 
 // リトライ設定
@@ -38,9 +41,9 @@ function parseDuration(duration: string | undefined): number | null {
   return null;
 }
 
-// Apify APIを呼び出す関数（リトライ付き）
+// Apify APIを呼び出す関数（リトライ付き）- streamers~youtube-scraperを使用
 async function callApifyWithRetry(
-  hashtags: string[],
+  searchKeywords: string[],
   maxResults: number,
   apiToken: string,
   maxRetries: number = MAX_RETRIES
@@ -49,9 +52,10 @@ async function callApifyWithRetry(
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Apify YouTube API呼び出し: 試行 ${attempt}/${maxRetries}`);
+      console.log(`Apify YouTube Scraper API呼び出し: 試行 ${attempt}/${maxRetries}`);
       
-      const apifyUrl = `https://api.apify.com/v2/acts/streamers~youtube-video-scraper-by-hashtag/run-sync-get-dataset-items?token=${apiToken}`;
+      // streamers~youtube-scraper を使用（likes/comments対応）
+      const apifyUrl = `https://api.apify.com/v2/acts/streamers~youtube-scraper/run-sync-get-dataset-items?token=${apiToken}`;
 
       const apifyResponse = await fetch(apifyUrl, {
         method: "POST",
@@ -59,9 +63,11 @@ async function callApifyWithRetry(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          hashtags,
+          searchKeywords,
           maxResults,
-          scrapeShortsOnly: true, // Shortsのみ取得
+          maxResultsShorts: maxResults,
+          searchType: "video",
+          verboseLog: false,
         }),
       });
 
@@ -71,12 +77,21 @@ async function callApifyWithRetry(
       }
 
       const apifyData: YouTubeVideoItem[] = await apifyResponse.json();
-      console.log(`Apify YouTube API成功: ${apifyData.length}件取得`);
-      return apifyData;
+      
+      // Shortsのみフィルタリング（URLに/shortsが含まれる、または60秒以下）
+      const shortsOnly = apifyData.filter(item => {
+        const isShortUrl = item.url?.includes('/shorts/');
+        const duration = parseDuration(item.duration);
+        const isShortDuration = duration !== null && duration <= 60;
+        return isShortUrl || isShortDuration;
+      });
+      
+      console.log(`Apify YouTube Scraper API成功: ${apifyData.length}件取得, Shorts: ${shortsOnly.length}件`);
+      return shortsOnly;
       
     } catch (error) {
       lastError = error as Error;
-      console.error(`Apify YouTube API失敗 (試行 ${attempt}/${maxRetries}):`, lastError.message);
+      console.error(`Apify YouTube Scraper API失敗 (試行 ${attempt}/${maxRetries}):`, lastError.message);
       
       if (attempt < maxRetries) {
         console.log(`${RETRY_DELAY_MS / 1000}秒後にリトライします...`);
@@ -85,10 +100,10 @@ async function callApifyWithRetry(
     }
   }
   
-  throw lastError || new Error("Apify YouTube API呼び出しに失敗しました");
+  throw lastError || new Error("Apify YouTube Scraper API呼び出しに失敗しました");
 }
 
-// POST /api/collect-youtube - Apify YouTube Video Scraper by Hashtagを使用して動画を収集
+// POST /api/collect-youtube - Apify YouTube Scraperを使用して動画を収集
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -114,7 +129,9 @@ export async function POST(request: NextRequest) {
         where: { id: industryId },
         include: {
           hashtags: {
-            where: { isActive: true },
+            where: { 
+              isActive: true,
+            },
           },
         },
       });
@@ -139,6 +156,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 検索キーワードを作成（ハッシュタグを検索キーワードとして使用）
+    const searchKeywords = hashtags.map((h: string) => 
+      h.startsWith('#') ? h : `#${h}`
+    );
+
     // 収集ログを作成
     const collectionLog = await prisma.collectionLog.create({
       data: {
@@ -153,7 +175,7 @@ export async function POST(request: NextRequest) {
     try {
       // Apify APIを呼び出し（リトライ付き）
       const apifyData = await callApifyWithRetry(
-        hashtags,
+        searchKeywords,
         maxResults,
         APIFY_API_TOKEN,
         MAX_RETRIES
@@ -165,8 +187,10 @@ export async function POST(request: NextRequest) {
 
       for (const item of apifyData) {
         const viewCount = item.viewCount || 0;
-        const likeCount = item.likes || 0;
-        const commentCount = item.commentsCount || 0;
+        // likes または numberOfLikes を使用
+        const likeCount = item.likes || item.numberOfLikes || 0;
+        // commentsCount または numberOfComments を使用
+        const commentCount = item.commentsCount || item.numberOfComments || 0;
         const shareCount = 0; // YouTubeにはシェア数がない
         const engagementRate =
           viewCount > 0 ? (likeCount + commentCount) / viewCount : 0;
@@ -183,6 +207,9 @@ export async function POST(request: NextRequest) {
         // YouTube動画IDをユニークキーとして使用（yt_プレフィックスを付ける）
         const videoId = `yt_${item.id}`;
 
+        // 説明文（title または text を使用）
+        const description = item.title || item.text || "";
+
         // 既存の動画を確認
         const existing = await prisma.video.findUnique({
           where: { tiktokVideoId: videoId },
@@ -194,7 +221,7 @@ export async function POST(request: NextRequest) {
             where: { tiktokVideoId: videoId },
             data: {
               videoUrl: item.url,
-              description: item.title,
+              description,
               hashtags: hashtagsArray,
               viewCount,
               likeCount,
@@ -217,7 +244,7 @@ export async function POST(request: NextRequest) {
             data: {
               tiktokVideoId: videoId,
               videoUrl: item.url,
-              description: item.title,
+              description,
               hashtags: hashtagsArray,
               viewCount,
               likeCount,
