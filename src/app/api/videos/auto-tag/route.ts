@@ -134,6 +134,7 @@ const industryHashtagMapping: Record<number, string[]> = {
   18: ["美容", "コスメ", "スキンケア", "メイク", "美肌", "化粧品", "beauty", "skincare", "makeup"],
   19: ["旅行", "トラベル", "国内旅行", "海外旅行", "観光", "絶景", "travel", "trip", "tourism"],
   20: ["医療", "健康", "ヘルスケア", "病院", "予防", "医師", "health", "medical", "healthcare"],
+  21: ["ペット", "犬", "猫", "ペットホテル", "猫ホテル", "ドッグ", "キャット", "わんこ", "にゃんこ", "pet", "dog", "cat"],
 };
 
 function detectIndustryFromHashtags(hashtags: string[]): number | null {
