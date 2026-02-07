@@ -340,60 +340,98 @@ export default function DashboardContent() {
 
             {/* Charts */}
             <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-              {/* Content Type ER Chart */}
+              {/* Content Type Chart - ER or Views based on data availability */}
               <Card className="border-gray-200 hover:shadow-md transition-shadow">
                 <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-semibold text-gray-800 sm:text-base">コンテンツ類型別ER</CardTitle>
-                    <span className="text-[10px] text-gray-400 sm:text-xs">エンゲージメント率</span>
+                    <CardTitle className="text-sm font-semibold text-gray-800 sm:text-base">
+                      {(() => {
+                        const stats = dashboardData?.charts.contentTypeStats || [];
+                        const hasER = stats.some(s => s.avgEngagement > 0);
+                        return hasER ? "コンテンツ類型別ER" : "コンテンツ類型別再生数";
+                      })()}
+                    </CardTitle>
+                    <span className="text-[10px] text-gray-400 sm:text-xs">
+                      {(() => {
+                        const stats = dashboardData?.charts.contentTypeStats || [];
+                        const hasER = stats.some(s => s.avgEngagement > 0);
+                        return hasER ? "エンゲージメント率" : "総再生数";
+                      })()}
+                    </span>
                   </div>
                 </CardHeader>
                 <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                   <div className="h-[220px] sm:h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={dashboardData?.charts.contentTypeStats || []}
-                        layout="vertical"
-                        margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
-                        <XAxis
-                          type="number"
-                          tickFormatter={(value: number) => `${(value * 100).toFixed(0)}%`}
-                          fontSize={10}
-                          tickLine={false}
-                          axisLine={false}
-                          tick={{ fill: "#9CA3AF" }}
-                        />
-                        <YAxis 
-                          dataKey="type" 
-                          type="category" 
-                          width={90} 
-                          fontSize={11}
-                          tickLine={false}
-                          axisLine={false}
-                          tick={{ fill: "#4B5563" }}
-                        />
-                        <Tooltip
-                          content={(props: any) => (
-                            <CustomTooltip
-                              active={props.active}
-                              payload={props.payload}
-                              label={props.label}
-                              formatter={(value: number) => [
-                                `${(value * 100).toFixed(2)}%`,
-                                "ER",
-                              ]}
-                            />
-                          )}
-                        />
-                        <Bar dataKey="avgEngagement" radius={[0, 6, 6, 0]} barSize={20}>
-                          {(dashboardData?.charts.contentTypeStats || []).map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={CONTENT_TYPE_COLORS[index % CONTENT_TYPE_COLORS.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                    {(dashboardData?.charts.contentTypeStats || []).length === 0 ? (
+                      <div className="flex h-full items-center justify-center">
+                        <p className="text-sm text-gray-400">データがありません</p>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={dashboardData?.charts.contentTypeStats || []}
+                          layout="vertical"
+                          margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
+                          <XAxis
+                            type="number"
+                            tickFormatter={(value: number) => {
+                              const stats = dashboardData?.charts.contentTypeStats || [];
+                              const hasER = stats.some(s => s.avgEngagement > 0);
+                              return hasER ? `${(value * 100).toFixed(0)}%` : formatNumber(value);
+                            }}
+                            fontSize={10}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fill: "#9CA3AF" }}
+                          />
+                          <YAxis 
+                            dataKey="type" 
+                            type="category" 
+                            width={90} 
+                            fontSize={11}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fill: "#4B5563" }}
+                          />
+                          <Tooltip
+                            content={(props: any) => {
+                              const stats = dashboardData?.charts.contentTypeStats || [];
+                              const hasER = stats.some(s => s.avgEngagement > 0);
+                              return (
+                                <CustomTooltip
+                                  active={props.active}
+                                  payload={props.payload}
+                                  label={props.label}
+                                  formatter={(value: number, _name: string, entryPayload: any) => {
+                                    if (hasER) {
+                                      const count = entryPayload?.count || 0;
+                                      return [`${(value * 100).toFixed(2)}% (${count}件)`, "ER"];
+                                    }
+                                    const count = entryPayload?.count || 0;
+                                    return [`${formatNumber(value)} (${count}件)`, "再生数"];
+                                  }}
+                                />
+                              );
+                            }}
+                          />
+                          <Bar
+                            dataKey={(() => {
+                              const stats = dashboardData?.charts.contentTypeStats || [];
+                              const hasER = stats.some(s => s.avgEngagement > 0);
+                              return hasER ? "avgEngagement" : "totalViews";
+                            })()}
+                            radius={[0, 6, 6, 0]}
+                            barSize={20}
+                          >
+                            {(dashboardData?.charts.contentTypeStats || []).map((_, index) => (
+                              <Cell key={`cell-${index}`} fill={CONTENT_TYPE_COLORS[index % CONTENT_TYPE_COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -408,50 +446,56 @@ export default function DashboardContent() {
                 </CardHeader>
                 <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                   <div className="h-[220px] sm:h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={dashboardData?.charts.hookTypeStats || []}
-                        layout="vertical"
-                        margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
-                        <XAxis
-                          type="number"
-                          tickFormatter={(value: number) => formatNumber(value)}
-                          fontSize={10}
-                          tickLine={false}
-                          axisLine={false}
-                          tick={{ fill: "#9CA3AF" }}
-                        />
-                        <YAxis 
-                          dataKey="type" 
-                          type="category" 
-                          width={90} 
-                          fontSize={11}
-                          tickLine={false}
-                          axisLine={false}
-                          tick={{ fill: "#4B5563" }}
-                        />
-                        <Tooltip
-                          content={(props: any) => (
-                            <CustomTooltip
-                              active={props.active}
-                              payload={props.payload}
-                              label={props.label}
-                              formatter={(value: number) => [
-                                formatNumber(value),
-                                "再生数",
-                              ]}
-                            />
-                          )}
-                        />
-                        <Bar dataKey="totalViews" radius={[0, 6, 6, 0]} barSize={20}>
-                          {(dashboardData?.charts.hookTypeStats || []).map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={HOOK_TYPE_COLORS[index % HOOK_TYPE_COLORS.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                    {(dashboardData?.charts.hookTypeStats || []).length === 0 ? (
+                      <div className="flex h-full items-center justify-center">
+                        <p className="text-sm text-gray-400">データがありません</p>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={dashboardData?.charts.hookTypeStats || []}
+                          layout="vertical"
+                          margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
+                          <XAxis
+                            type="number"
+                            tickFormatter={(value: number) => formatNumber(value)}
+                            fontSize={10}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fill: "#9CA3AF" }}
+                          />
+                          <YAxis 
+                            dataKey="type" 
+                            type="category" 
+                            width={90} 
+                            fontSize={11}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fill: "#4B5563" }}
+                          />
+                          <Tooltip
+                            content={(props: any) => (
+                              <CustomTooltip
+                                active={props.active}
+                                payload={props.payload}
+                                label={props.label}
+                                formatter={(value: number, _name: string, entryPayload: any) => {
+                                  const count = entryPayload?.count || 0;
+                                  return [`${formatNumber(value)} (${count}件)`, "再生数"];
+                                }}
+                              />
+                            )}
+                          />
+                          <Bar dataKey="totalViews" radius={[0, 6, 6, 0]} barSize={20}>
+                            {(dashboardData?.charts.hookTypeStats || []).map((_, index) => (
+                              <Cell key={`cell-${index}`} fill={HOOK_TYPE_COLORS[index % HOOK_TYPE_COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -473,63 +517,83 @@ export default function DashboardContent() {
 
             {/* Second Row Charts */}
             <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-              {/* Duration Category ER Chart */}
+              {/* Duration Category Chart - ER or Views based on data availability */}
               <Card className="border-gray-200 hover:shadow-md transition-shadow">
                 <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-semibold text-gray-800 sm:text-base">動画尺別ER</CardTitle>
-                    <span className="text-[10px] text-gray-400 sm:text-xs">エンゲージメント率</span>
+                    <CardTitle className="text-sm font-semibold text-gray-800 sm:text-base">
+                      {sortedDurationStats.some(s => s.avgEngagement > 0) ? "動画尺別ER" : "動画尺別再生数"}
+                    </CardTitle>
+                    <span className="text-[10px] text-gray-400 sm:text-xs">
+                      {sortedDurationStats.some(s => s.avgEngagement > 0) ? "エンゲージメント率" : "総再生数"}
+                    </span>
                   </div>
                 </CardHeader>
                 <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                   <div className="h-[180px] sm:h-[240px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={sortedDurationStats}
-                        layout="vertical"
-                        margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
-                        <XAxis
-                          type="number"
-                          tickFormatter={(value: number) => `${(value * 100).toFixed(0)}%`}
-                          fontSize={10}
-                          tickLine={false}
-                          axisLine={false}
-                          tick={{ fill: "#9CA3AF" }}
-                        />
-                        <YAxis 
-                          dataKey="category" 
-                          type="category" 
-                          width={70} 
-                          fontSize={10}
-                          tickLine={false}
-                          axisLine={false}
-                          tick={{ fill: "#4B5563" }}
-                        />
-                        <Tooltip
-                          content={(props: any) => (
-                            <CustomTooltip
-                              active={props.active}
-                              payload={props.payload}
-                              label={props.label}
-                              formatter={(value: number, _name: string, entryPayload: any) => {
-                                const count = entryPayload?.count || 0;
-                                return [
-                                  `${(value * 100).toFixed(2)}% (${count}件)`,
-                                  "ER",
-                                ];
-                              }}
-                            />
-                          )}
-                        />
-                        <Bar dataKey="avgEngagement" radius={[0, 6, 6, 0]} barSize={24}>
-                          {sortedDurationStats.map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={DURATION_COLORS[index % DURATION_COLORS.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                    {sortedDurationStats.length === 0 ? (
+                      <div className="flex h-full items-center justify-center">
+                        <p className="text-sm text-gray-400">データがありません</p>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={sortedDurationStats}
+                          layout="vertical"
+                          margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
+                          <XAxis
+                            type="number"
+                            tickFormatter={(value: number) => {
+                              const hasER = sortedDurationStats.some(s => s.avgEngagement > 0);
+                              return hasER ? `${(value * 100).toFixed(0)}%` : formatNumber(value);
+                            }}
+                            fontSize={10}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fill: "#9CA3AF" }}
+                          />
+                          <YAxis 
+                            dataKey="category" 
+                            type="category" 
+                            width={70} 
+                            fontSize={10}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fill: "#4B5563" }}
+                          />
+                          <Tooltip
+                            content={(props: any) => {
+                              const hasER = sortedDurationStats.some(s => s.avgEngagement > 0);
+                              return (
+                                <CustomTooltip
+                                  active={props.active}
+                                  payload={props.payload}
+                                  label={props.label}
+                                  formatter={(value: number, _name: string, entryPayload: any) => {
+                                    const count = entryPayload?.count || 0;
+                                    if (hasER) {
+                                      return [`${(value * 100).toFixed(2)}% (${count}件)`, "ER"];
+                                    }
+                                    return [`${formatNumber(value)} (${count}件)`, "再生数"];
+                                  }}
+                                />
+                              );
+                            }}
+                          />
+                          <Bar
+                            dataKey={sortedDurationStats.some(s => s.avgEngagement > 0) ? "avgEngagement" : "totalViews"}
+                            radius={[0, 6, 6, 0]}
+                            barSize={24}
+                          >
+                            {sortedDurationStats.map((_, index) => (
+                              <Cell key={`cell-${index}`} fill={DURATION_COLORS[index % DURATION_COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
                   </div>
                 </CardContent>
               </Card>
