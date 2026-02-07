@@ -35,18 +35,24 @@ export async function POST(request: NextRequest) {
       { cancel_at_period_end: true }
     );
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const subData = subscription as any;
+    const periodEnd = subData.current_period_end
+      ? new Date(subData.current_period_end * 1000)
+      : new Date();
+
     await prisma.user.update({
       where: { id: user.id },
       data: {
         cancelAtPeriodEnd: true,
-        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        currentPeriodEnd: periodEnd,
       },
     });
 
     return NextResponse.json({
       success: true,
       message: "サブスクリプションは現在の請求期間の終了時にキャンセルされます",
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
+      currentPeriodEnd: periodEnd.toISOString(),
     });
   } catch (error) {
     console.error("Cancel subscription error:", error);

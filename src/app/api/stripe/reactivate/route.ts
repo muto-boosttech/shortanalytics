@@ -35,11 +35,14 @@ export async function POST(request: NextRequest) {
       { cancel_at_period_end: false }
     );
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const subData = subscription as any;
+
     await prisma.user.update({
       where: { id: user.id },
       data: {
         cancelAtPeriodEnd: false,
-        subscriptionStatus: subscription.status,
+        subscriptionStatus: subData.status || "active",
       },
     });
 

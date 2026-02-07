@@ -18,11 +18,12 @@ export async function GET(request: NextRequest) {
     });
 
     if (session.payment_status === "paid" || session.status === "complete") {
-      const subscription = session.subscription as import("stripe").Stripe.Subscription;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const subscription = session.subscription as any;
       const userId = parseInt(session.metadata?.userId || "0");
 
       if (userId && subscription) {
-        const priceId = subscription.items.data[0]?.price?.id || "";
+        const priceId = subscription.items?.data?.[0]?.price?.id || "";
         const plan = session.metadata?.plan || getPlanFromPriceId(priceId);
 
         // ユーザーのプラン情報を更新
@@ -32,9 +33,11 @@ export async function GET(request: NextRequest) {
             plan: plan,
             stripeSubscriptionId: subscription.id,
             stripePriceId: priceId,
-            subscriptionStatus: subscription.status,
-            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-            cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            subscriptionStatus: subscription.status || "active",
+            currentPeriodEnd: subscription.current_period_end
+              ? new Date(subscription.current_period_end * 1000)
+              : null,
+            cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
           },
         });
 
