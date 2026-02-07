@@ -1,31 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PLAN_PRICE_MAP } from "@/lib/stripe";
+import { stripe, PLAN_PRICE_MAP } from "@/lib/stripe";
 import prisma from "@/lib/prisma";
-
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
-
-async function stripeRequest(endpoint: string, params: Record<string, string>) {
-  const body = new URLSearchParams(params).toString();
-  const res = await fetch(`https://api.stripe.com/v1${endpoint}`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${STRIPE_SECRET_KEY}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body,
-  });
-  return res.json();
-}
-
-async function stripeGet(endpoint: string) {
-  const res = await fetch(`https://api.stripe.com/v1${endpoint}`, {
-    method: "GET",
-    headers: {
-      "Authorization": `Bearer ${STRIPE_SECRET_KEY}`,
-    },
-  });
-  return res.json();
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,20 +44,14 @@ export async function POST(request: NextRequest) {
     // Stripe Customerを作成または取得
     let customerId = user.stripeCustomerId;
     if (!customerId) {
-      const customer = await stripeRequest("/customers", {
-        email: user.email || "",
+      const customer = await stripe.customers.create({
+        email: user.email || undefined,
         name: user.displayName || user.username,
-        "metadata[userId]": user.id.toString(),
-        "metadata[username]": user.username,
+        metadata: {
+          userId: user.id.toString(),
+          username: user.username,
+        },
       });
-
-      if (customer.error) {
-        return NextResponse.json(
-          { error: `Stripe Customer作成エラー: ${customer.error.message}` },
-          { status: 500 }
-        );
-      }
-
       customerId = customer.id;
 
       // DBにStripe Customer IDを保存
@@ -94,45 +63,42 @@ export async function POST(request: NextRequest) {
 
     // 既存のアクティブなサブスクリプションがある場合はポータルにリダイレクト
     if (user.stripeSubscriptionId && user.subscriptionStatus === "active") {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://tategatashort-analytics.com";
-      const portalSession = await stripeRequest("/billing_portal/sessions", {
-        customer: customerId!,
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://tategatashort-analytics.com").trim();
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: customerId,
         return_url: `${appUrl}/dashboard`,
       });
-      if (portalSession.error) {
-        return NextResponse.json(
-          { error: `ポータルセッション作成エラー: ${portalSession.error.message}` },
-          { status: 500 }
-        );
-      }
       return NextResponse.json({ url: portalSession.url });
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://tategatashort-analytics.com";
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://tategatashort-analytics.com").trim();
 
-    // Checkout Sessionを作成（fetch API使用）
-    const session = await stripeRequest("/checkout/sessions", {
-      customer: customerId!,
+    // Checkout Sessionを作成
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
       mode: "subscription",
-      "payment_method_types[0]": "card",
-      "line_items[0][price]": priceId,
-      "line_items[0][quantity]": "1",
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
       success_url: `${appUrl}/signup/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/signup?canceled=true`,
-      "metadata[userId]": user.id.toString(),
-      "metadata[plan]": plan,
-      "subscription_data[metadata][userId]": user.id.toString(),
-      "subscription_data[metadata][plan]": plan,
+      metadata: {
+        userId: user.id.toString(),
+        plan: plan,
+      },
+      subscription_data: {
+        metadata: {
+          userId: user.id.toString(),
+          plan: plan,
+        },
+      },
       locale: "ja",
-      allow_promotion_codes: "true",
+      allow_promotion_codes: true,
     });
-
-    if (session.error) {
-      return NextResponse.json(
-        { error: `Checkoutセッション作成エラー: ${session.error.message}` },
-        { status: 500 }
-      );
-    }
 
     return NextResponse.json({ url: session.url, sessionId: session.id });
   } catch (error: unknown) {

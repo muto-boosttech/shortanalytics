@@ -5,10 +5,11 @@ let _stripe: Stripe | null = null;
 
 export function getStripe(): Stripe {
   if (!_stripe) {
-    if (!process.env.STRIPE_SECRET_KEY) {
+    const key = (process.env.STRIPE_SECRET_KEY || "").trim();
+    if (!key) {
       throw new Error("STRIPE_SECRET_KEY is not set");
     }
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    _stripe = new Stripe(key, {
       typescript: true,
       maxNetworkRetries: 3,
       timeout: 30000,
@@ -24,11 +25,11 @@ export const stripe = new Proxy({} as Stripe, {
   },
 });
 
-// プラン名とStripe Price IDのマッピング
+// プラン名とStripe Price IDのマッピング（trim()で改行文字を除去）
 export const PLAN_PRICE_MAP: Record<string, string> = {
-  starter: process.env.STRIPE_PRICE_STARTER || "",
-  premium: process.env.STRIPE_PRICE_PREMIUM || "",
-  max: process.env.STRIPE_PRICE_MAX || "",
+  starter: (process.env.STRIPE_PRICE_STARTER || "").trim(),
+  premium: (process.env.STRIPE_PRICE_PREMIUM || "").trim(),
+  max: (process.env.STRIPE_PRICE_MAX || "").trim(),
 };
 
 // Stripe Price IDからプラン名を逆引き
