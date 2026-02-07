@@ -11,16 +11,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatNumber, formatPercent } from "@/lib/utils";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
+import dynamic from "next/dynamic";
+import { useRef } from "react";
+
+// Rechartsを動的インポートで遅延読み込み
+const LazyBarChart = dynamic(
+  () => import("recharts").then((mod) => mod.BarChart),
+  { ssr: false, loading: () => <div className="h-full flex items-center justify-center text-gray-400 text-sm">チャート読み込み中...</div> }
+);
+const LazyBar = dynamic(() => import("recharts").then((mod) => mod.Bar), { ssr: false });
+const LazyXAxis = dynamic(() => import("recharts").then((mod) => mod.XAxis), { ssr: false });
+const LazyYAxis = dynamic(() => import("recharts").then((mod) => mod.YAxis), { ssr: false });
+const LazyCartesianGrid = dynamic(() => import("recharts").then((mod) => mod.CartesianGrid), { ssr: false });
+const LazyTooltip = dynamic(() => import("recharts").then((mod) => mod.Tooltip), { ssr: false });
+const LazyResponsiveContainer = dynamic(() => import("recharts").then((mod) => mod.ResponsiveContainer), { ssr: false });
+const LazyCell = dynamic(() => import("recharts").then((mod) => mod.Cell), { ssr: false });
 import { Calendar, Eye, Heart, TrendingUp, Video, Youtube, Instagram } from "lucide-react";
 import { AIAssistCard } from "@/components/ai-assist-card";
 import { ExportButton } from "@/components/export-button";
@@ -306,21 +311,21 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                   <div className="h-[220px] sm:h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
+                    <LazyResponsiveContainer width="100%" height="100%">
+                      <LazyBarChart
                         data={dashboardData?.charts.contentTypeStats || []}
                         layout="vertical"
                         margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                        <XAxis
+                        <LazyCartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                        <LazyXAxis
                           type="number"
                           tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
                           fontSize={10}
                           tickLine={false}
                           axisLine={false}
                         />
-                        <YAxis 
+                        <LazyYAxis 
                           dataKey="type" 
                           type="category" 
                           width={90} 
@@ -328,20 +333,20 @@ export default function DashboardPage() {
                           tickLine={false}
                           axisLine={false}
                         />
-                        <Tooltip
+                        <LazyTooltip
                           formatter={(value) => [
                             `${(Number(value || 0) * 100).toFixed(2)}%`,
                             "ER",
                           ]}
                           contentStyle={{ fontSize: 11 }}
                         />
-                        <Bar dataKey="avgEngagement" radius={[0, 4, 4, 0]}>
+                        <LazyBar dataKey="avgEngagement" radius={[0, 4, 4, 0]}>
                           {(dashboardData?.charts.contentTypeStats || []).map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={CONTENT_TYPE_COLORS[index % CONTENT_TYPE_COLORS.length]} />
+                            <LazyCell key={`cell-${index}`} fill={CONTENT_TYPE_COLORS[index % CONTENT_TYPE_COLORS.length]} />
                           ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                        </LazyBar>
+                      </LazyBarChart>
+                    </LazyResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
@@ -353,21 +358,21 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                   <div className="h-[220px] sm:h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
+                    <LazyResponsiveContainer width="100%" height="100%">
+                      <LazyBarChart
                         data={dashboardData?.charts.hookTypeStats || []}
                         layout="vertical"
                         margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                        <XAxis
+                        <LazyCartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                        <LazyXAxis
                           type="number"
                           tickFormatter={(value) => formatNumber(value)}
                           fontSize={10}
                           tickLine={false}
                           axisLine={false}
                         />
-                        <YAxis 
+                        <LazyYAxis 
                           dataKey="type" 
                           type="category" 
                           width={100} 
@@ -375,17 +380,17 @@ export default function DashboardPage() {
                           tickLine={false}
                           axisLine={false}
                         />
-                        <Tooltip
+                        <LazyTooltip
                           formatter={(value) => [formatNumber(Number(value || 0)), "再生数"]}
                           contentStyle={{ fontSize: 11 }}
                         />
-                        <Bar dataKey="totalViews" radius={[0, 4, 4, 0]}>
+                        <LazyBar dataKey="totalViews" radius={[0, 4, 4, 0]}>
                           {(dashboardData?.charts.hookTypeStats || []).map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={HOOK_TYPE_COLORS[index % HOOK_TYPE_COLORS.length]} />
+                            <LazyCell key={`cell-${index}`} fill={HOOK_TYPE_COLORS[index % HOOK_TYPE_COLORS.length]} />
                           ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                        </LazyBar>
+                      </LazyBarChart>
+                    </LazyResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
@@ -414,21 +419,21 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                   <div className="h-[180px] sm:h-[220px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
+                    <LazyResponsiveContainer width="100%" height="100%">
+                      <LazyBarChart
                         data={sortedDurationStats}
                         layout="vertical"
                         margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                        <XAxis
+                        <LazyCartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                        <LazyXAxis
                           type="number"
                           tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
                           fontSize={10}
                           tickLine={false}
                           axisLine={false}
                         />
-                        <YAxis 
+                        <LazyYAxis 
                           dataKey="category" 
                           type="category" 
                           width={70} 
@@ -436,7 +441,7 @@ export default function DashboardPage() {
                           tickLine={false}
                           axisLine={false}
                         />
-                        <Tooltip
+                        <LazyTooltip
                           formatter={(value, _name, props) => {
                             const count = props?.payload?.count || 0;
                             return [
@@ -446,13 +451,13 @@ export default function DashboardPage() {
                           }}
                           contentStyle={{ fontSize: 11 }}
                         />
-                        <Bar dataKey="avgEngagement" radius={[0, 4, 4, 0]}>
+                        <LazyBar dataKey="avgEngagement" radius={[0, 4, 4, 0]}>
                           {sortedDurationStats.map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={DURATION_COLORS[index % DURATION_COLORS.length]} />
+                            <LazyCell key={`cell-${index}`} fill={DURATION_COLORS[index % DURATION_COLORS.length]} />
                           ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                        </LazyBar>
+                      </LazyBarChart>
+                    </LazyResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>

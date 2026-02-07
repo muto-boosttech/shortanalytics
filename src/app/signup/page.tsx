@@ -409,7 +409,7 @@ function SignupPageContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
             <div className="flex items-center">
-              <Image src="/logo.png" alt="縦型ショート Analytics" width={200} height={40} className="h-8 w-auto" />
+              <Image src="/logo.webp" alt="縦型ショート Analytics" width={200} height={40} className="h-8 w-auto" priority />
             </div>
             <nav className="hidden md:flex items-center gap-8">
               <a href="#about" className={`text-sm font-medium transition-colors ${scrollY > 50 ? "text-gray-600 hover:text-emerald-600" : "text-gray-700 hover:text-emerald-600"}`}>サービス概要</a>
@@ -507,11 +507,12 @@ function SignupPageContent() {
                   <video
                     ref={videoRef}
                     className="w-full h-full object-cover"
-                    poster="/images/screenshot-dashboard.png"
+                    poster="/images/screenshot-dashboard.webp"
                     playsInline
                     muted
                     loop
                     autoPlay
+                    preload="none"
                   >
                     <source src="/videos/demo.mp4" type="video/mp4" />
                   </video>
@@ -640,7 +641,7 @@ function SignupPageContent() {
                   </div>
                 </div>
                 <Image
-                  src={activeStep <= 2 ? "/images/screenshot-dashboard.png" : "/images/screenshot-ranking2.png"}
+                  src={activeStep <= 2 ? "/images/screenshot-dashboard.webp" : "/images/screenshot-ranking2.webp"}
                   alt={activeStep <= 2 ? "ダッシュボード画面" : "ランキング画面"}
                   width={800}
                   height={500}
@@ -686,7 +687,8 @@ function SignupPageContent() {
                   muted
                   loop
                   autoPlay
-                  poster="/images/screenshot-dashboard.png"
+                  preload="none"
+                  poster="/images/screenshot-dashboard.webp"
                 >
                   <source src="/videos/demo.mp4" type="video/mp4" />
                 </video>
@@ -801,7 +803,7 @@ function SignupPageContent() {
                 </div>
               </div>
               <Image
-                src={activeScreenshot === "dashboard" ? "/images/screenshot-dashboard.png" : "/images/screenshot-ranking2.png"}
+                src={activeScreenshot === "dashboard" ? "/images/screenshot-dashboard.webp" : "/images/screenshot-ranking2.webp"}
                 alt={activeScreenshot === "dashboard" ? "ダッシュボード画面" : "ランキング画面"}
                 width={1200}
                 height={750}
@@ -1297,7 +1299,7 @@ function SignupPageContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center">
-              <Image src="/logo.png" alt="縦型ショート Analytics" width={200} height={40} className="h-8 w-auto brightness-0 invert" />
+              <Image src="/logo.webp" alt="縦型ショート Analytics" width={200} height={40} className="h-8 w-auto brightness-0 invert" loading="lazy" />
             </div>
             <div className="flex items-center gap-6 text-sm text-gray-400">
               <a href="/terms" className="hover:text-white transition-colors">利用規約</a>

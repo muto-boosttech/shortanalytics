@@ -51,7 +51,7 @@ function LoginForm() {
         <div className="text-center mb-6 sm:mb-8">
           <div className="flex justify-center mb-4">
             <Image 
-              src="/logo.png" 
+              src="/logo.webp" 
               alt="縦型ショート Analytics" 
               width={280}
               height={60}

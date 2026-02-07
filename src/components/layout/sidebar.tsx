@@ -67,7 +67,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
         <div className="flex h-16 items-center justify-between border-b px-3">
           <div className="flex items-center">
             <Image 
-              src="/logo.png" 
+              src="/logo.webp" 
               alt="縦型ショート Analytics" 
               width={180}
               height={40}
