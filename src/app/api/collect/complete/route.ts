@@ -130,6 +130,8 @@ export async function POST(request: NextRequest) {
     if (plat === "tiktok") {
       const apifyData = items as ApifyVideoItem[];
       for (const item of apifyData) {
+        // エラーレスポンスやIDなしのアイテムをスキップ
+        if (!item.id || (item as any).error) continue;
         const viewCount = item.playCount || 0;
         const likeCount = item.diggCount || 0;
         const commentCount = item.commentCount || 0;
@@ -167,7 +169,7 @@ export async function POST(request: NextRequest) {
       }
       totalProcessed = apifyData.length;
     } else if (plat === "youtube") {
-      const apifyData = items as YouTubeVideoItem[];
+      const apifyData = (items as YouTubeVideoItem[]).filter(item => item.id && !(item as any).error);
       // Shortsのみフィルタリング
       const shortsOnly = apifyData.filter((item) => {
         const isShortUrl = item.url?.includes("/shorts/");
@@ -217,7 +219,7 @@ export async function POST(request: NextRequest) {
       }
       totalProcessed = shortsOnly.length;
     } else if (plat === "instagram") {
-      const apifyData = items as InstagramReelItem[];
+      const apifyData = (items as InstagramReelItem[]).filter(item => item.shortCode && !(item as any).error);
       const reelsOnly = apifyData.filter((item) => item.type === "Video");
 
       for (const item of reelsOnly) {
