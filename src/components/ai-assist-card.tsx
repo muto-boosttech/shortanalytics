@@ -8,21 +8,14 @@ import { Sparkles, RefreshCw, Lightbulb, ChevronDown, ChevronUp } from "lucide-r
 interface AIAssistCardProps {
   type: "dashboard" | "ranking";
   industryId?: string;
-  platform?: "tiktok" | "youtube";
+  platform?: "tiktok" | "youtube" | "instagram";
   data: Record<string, unknown>;
   title?: string;
 }
 
 // LaTeX数式をプレーンテキストに変換
 function cleanLatex(text: string): string {
-  // \[ ... \] ブロック数式を除去
-  let cleaned = text.replace(/\\\[[\s\S]*?\\\]/g, "");
-  // \( ... \) インライン数式を除去
-  cleaned = cleaned.replace(/\\\([\s\S]*?\\\)/g, "");
-  // $$ ... $$ ブロック数式を除去
-  cleaned = cleaned.replace(/\$\$[\s\S]*?\$\$/g, "");
-  // $ ... $ インライン数式を除去
-  cleaned = cleaned.replace(/\$[^$]+\$/g, "");
+  let cleaned = text;
   // \frac{a}{b} → a/b
   cleaned = cleaned.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "($1) / ($2)");
   // \approx → ≈
@@ -33,56 +26,19 @@ function cleanLatex(text: string): string {
   cleaned = cleaned.replace(/\\text\{([^}]+)\}/g, "$1");
   // \dots → ...
   cleaned = cleaned.replace(/\\dots|\\ldots|\\cdots/g, "...");
-  // 残りのバックスラッシュコマンドを除去
-  cleaned = cleaned.replace(/\\[a-zA-Z]+/g, "");
+  // \[ ... \] ブロック数式を除去
+  cleaned = cleaned.replace(/\\\[[\s\S]*?\\\]/g, "");
+  // \( ... \) インライン数式を除去
+  cleaned = cleaned.replace(/\\\([\s\S]*?\\\)/g, "");
+  // $$ ... $$ ブロック数式を除去
+  cleaned = cleaned.replace(/\$\$[\s\S]*?\$\$/g, "");
+  // $ ... $ インライン数式を除去（ただし通貨記号は除外）
+  cleaned = cleaned.replace(/\$([^$\d][^$]*)\$/g, "$1");
+  // 残りのバックスラッシュコマンドを除去（ただし\nなどは保持）
+  cleaned = cleaned.replace(/\\(?!n|r|t)[a-zA-Z]+/g, "");
   // 連続する空行を1つに
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
   return cleaned;
-}
-
-// Markdown テーブルを HTML テーブルに変換
-function renderMarkdownTable(tableText: string): string {
-  const lines = tableText.trim().split("\n").filter(l => l.trim().length > 0);
-  if (lines.length < 2) return tableText;
-
-  let html = '<div class="ai-table-wrapper"><table class="ai-table">';
-
-  let headerProcessed = false;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    // セパレータ行（|---|---|---| など）はスキップ
-    if (/^\|[\s\-:]+\|$/.test(line.replace(/[^|\-:\s]/g, "").trim()) || 
-        (line.includes("---") && line.includes("|") && !line.replace(/[\s\-:|]/g, ""))) {
-      continue;
-    }
-
-    const cells = line
-      .split("|")
-      .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
-      .map((c) => c.trim());
-
-    if (cells.length === 0) continue;
-
-    const isHeader = !headerProcessed;
-    if (isHeader) headerProcessed = true;
-
-    if (isHeader) {
-      html += "<thead><tr>";
-      for (const cell of cells) {
-        html += `<th>${renderInlineMarkdown(cell)}</th>`;
-      }
-      html += "</tr></thead><tbody>";
-    } else {
-      html += "<tr>";
-      for (const cell of cells) {
-        html += `<td>${renderInlineMarkdown(cell)}</td>`;
-      }
-      html += "</tr>";
-    }
-  }
-
-  html += "</tbody></table></div>";
-  return html;
 }
 
 // インラインMarkdown（太字、斜体、コード）を処理
@@ -97,123 +53,195 @@ function renderInlineMarkdown(text: string): string {
   return result;
 }
 
+// テーブル行かどうかを判定
+function isTableRow(line: string): boolean {
+  const trimmed = line.trim();
+  return trimmed.startsWith("|") && trimmed.endsWith("|") && trimmed.length > 2;
+}
+
+// セパレータ行かどうかを判定
+function isTableSeparator(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("|") || !trimmed.endsWith("|")) return false;
+  // |の間に---のみがある行
+  const inner = trimmed.slice(1, -1);
+  return inner.split("|").every(cell => /^[\s\-:]+$/.test(cell));
+}
+
+// テーブル行群をHTMLテーブルに変換
+function convertTableToHtml(tableLines: string[]): string {
+  if (tableLines.length < 2) return tableLines.join("\n");
+
+  let html = '<div class="ai-table-wrapper"><table class="ai-table">';
+  let headerDone = false;
+
+  for (const line of tableLines) {
+    const trimmed = line.trim();
+
+    // セパレータ行はスキップ
+    if (isTableSeparator(trimmed)) continue;
+
+    // セルを抽出
+    const cells = trimmed
+      .slice(1, -1) // 先頭と末尾の | を除去
+      .split("|")
+      .map(c => c.trim());
+
+    if (cells.length === 0) continue;
+
+    if (!headerDone) {
+      html += "<thead><tr>";
+      for (const cell of cells) {
+        html += `<th>${renderInlineMarkdown(cell)}</th>`;
+      }
+      html += "</tr></thead><tbody>";
+      headerDone = true;
+    } else {
+      html += "<tr>";
+      for (const cell of cells) {
+        html += `<td>${renderInlineMarkdown(cell)}</td>`;
+      }
+      html += "</tr>";
+    }
+  }
+
+  html += "</tbody></table></div>";
+  return html;
+}
+
 // Markdown をリッチな HTML に変換するメイン関数
 function renderMarkdown(text: string): string {
   // まずLaTeX数式をクリーンアップ
-  let html = cleanLatex(text);
+  const cleaned = cleanLatex(text);
 
-  // テーブルを処理（複数行にまたがるため先に処理）
-  html = html.replace(
-    /(\|.+\|[\r\n]+\|[\s\-:]+\|[\r\n]+(?:\|.+\|[\r\n]*)+)/g,
-    (match) => renderMarkdownTable(match)
-  );
-
-  // 行ごとに処理するために分割
-  const lines = html.split("\n");
+  // 行ごとに処理
+  const lines = cleaned.split("\n");
   const processedLines: string[] = [];
   let inList = false;
   let listType: "ul" | "ol" | null = null;
   let inBlockquote = false;
+  let tableBuffer: string[] = [];
+
+  function flushTable() {
+    if (tableBuffer.length >= 2) {
+      processedLines.push(convertTableToHtml(tableBuffer));
+    } else if (tableBuffer.length > 0) {
+      // テーブルとして成立しない場合はそのまま出力
+      for (const tl of tableBuffer) {
+        processedLines.push(`<p class="ai-paragraph">${renderInlineMarkdown(tl.trim())}</p>`);
+      }
+    }
+    tableBuffer = [];
+  }
+
+  function closeList() {
+    if (inList) {
+      processedLines.push(listType === "ol" ? "</ol>" : "</ul>");
+      inList = false;
+      listType = null;
+    }
+  }
+
+  function closeBlockquote() {
+    if (inBlockquote) {
+      processedLines.push("</blockquote>");
+      inBlockquote = false;
+    }
+  }
 
   for (let i = 0; i < lines.length; i++) {
-    let line = lines[i];
-
-    // HTMLタグが含まれる行はそのまま通す（テーブルなど）
-    if (line.includes("<div") || line.includes("</div") || 
-        line.includes("<table") || line.includes("</table") ||
-        line.includes("<thead") || line.includes("</thead") ||
-        line.includes("<tbody") || line.includes("</tbody") ||
-        line.includes("<tr") || line.includes("</tr") ||
-        line.includes("<th") || line.includes("<td")) {
-      if (inList) {
-        processedLines.push(listType === "ol" ? "</ol>" : "</ul>");
-        inList = false;
-        listType = null;
-      }
-      if (inBlockquote) {
-        processedLines.push("</blockquote>");
-        inBlockquote = false;
-      }
-      processedLines.push(line);
-      continue;
-    }
-
+    const line = lines[i];
     const trimmed = line.trim();
+
+    // テーブル行の検出
+    if (isTableRow(trimmed)) {
+      // テーブルモードに入る前にリスト・引用を閉じる
+      if (tableBuffer.length === 0) {
+        closeList();
+        closeBlockquote();
+      }
+      tableBuffer.push(trimmed);
+      continue;
+    } else if (tableBuffer.length > 0) {
+      // テーブルモード終了
+      flushTable();
+    }
 
     // 空行
     if (trimmed === "") {
-      if (inList) {
-        processedLines.push(listType === "ol" ? "</ol>" : "</ul>");
-        inList = false;
-        listType = null;
-      }
-      if (inBlockquote) {
-        processedLines.push("</blockquote>");
-        inBlockquote = false;
-      }
+      closeList();
+      closeBlockquote();
       processedLines.push('<div class="ai-spacer"></div>');
       continue;
     }
 
     // # 見出し → h1
-    if (/^# (.+)$/.test(trimmed)) {
-      if (inList) { processedLines.push(listType === "ol" ? "</ol>" : "</ul>"); inList = false; listType = null; }
-      const match = trimmed.match(/^# (.+)$/);
-      processedLines.push(`<h1 class="ai-h1">${renderInlineMarkdown(match![1])}</h1>`);
+    const h1Match = trimmed.match(/^# (.+)$/);
+    if (h1Match) {
+      closeList();
+      closeBlockquote();
+      processedLines.push(`<h1 class="ai-h1">${renderInlineMarkdown(h1Match[1])}</h1>`);
       continue;
     }
 
     // ## 見出し → h2
-    if (/^## (.+)$/.test(trimmed)) {
-      if (inList) { processedLines.push(listType === "ol" ? "</ol>" : "</ul>"); inList = false; listType = null; }
-      const match = trimmed.match(/^## (.+)$/);
-      processedLines.push(`<h2 class="ai-h2">${renderInlineMarkdown(match![1])}</h2>`);
+    const h2Match = trimmed.match(/^## (.+)$/);
+    if (h2Match) {
+      closeList();
+      closeBlockquote();
+      // 見出しの番号付きスタイル（例: ## 1\. → ## 1.）
+      const title = h2Match[1].replace(/\\./g, ".");
+      processedLines.push(`<h2 class="ai-h2">${renderInlineMarkdown(title)}</h2>`);
       continue;
     }
 
     // ### 見出し → h3
-    if (/^### (.+)$/.test(trimmed)) {
-      if (inList) { processedLines.push(listType === "ol" ? "</ol>" : "</ul>"); inList = false; listType = null; }
-      const match = trimmed.match(/^### (.+)$/);
-      processedLines.push(`<h3 class="ai-h3">${renderInlineMarkdown(match![1])}</h3>`);
+    const h3Match = trimmed.match(/^### (.+)$/);
+    if (h3Match) {
+      closeList();
+      closeBlockquote();
+      const title = h3Match[1].replace(/\\./g, ".");
+      processedLines.push(`<h3 class="ai-h3">${renderInlineMarkdown(title)}</h3>`);
       continue;
     }
 
     // #### 見出し → h4
-    if (/^#### (.+)$/.test(trimmed)) {
-      if (inList) { processedLines.push(listType === "ol" ? "</ol>" : "</ul>"); inList = false; listType = null; }
-      const match = trimmed.match(/^#### (.+)$/);
-      processedLines.push(`<h4 class="ai-h4">${renderInlineMarkdown(match![1])}</h4>`);
+    const h4Match = trimmed.match(/^#### (.+)$/);
+    if (h4Match) {
+      closeList();
+      closeBlockquote();
+      processedLines.push(`<h4 class="ai-h4">${renderInlineMarkdown(h4Match[1])}</h4>`);
       continue;
     }
 
     // --- 水平線
     if (/^[-*_]{3,}$/.test(trimmed)) {
-      if (inList) { processedLines.push(listType === "ol" ? "</ol>" : "</ul>"); inList = false; listType = null; }
+      closeList();
+      closeBlockquote();
       processedLines.push('<hr class="ai-hr" />');
       continue;
     }
 
     // > 引用
-    if (/^> (.+)$/.test(trimmed)) {
-      if (inList) { processedLines.push(listType === "ol" ? "</ol>" : "</ul>"); inList = false; listType = null; }
+    const bqMatch = trimmed.match(/^> (.+)$/);
+    if (bqMatch) {
+      closeList();
       if (!inBlockquote) {
         processedLines.push('<blockquote class="ai-blockquote">');
         inBlockquote = true;
       }
-      const match = trimmed.match(/^> (.+)$/);
-      processedLines.push(`<p>${renderInlineMarkdown(match![1])}</p>`);
+      processedLines.push(`<p>${renderInlineMarkdown(bqMatch[1])}</p>`);
       continue;
     } else if (inBlockquote) {
-      processedLines.push("</blockquote>");
-      inBlockquote = false;
+      closeBlockquote();
     }
 
-    // - リスト項目（ネスト対応）
+    // - * + リスト項目
     const ulMatch = trimmed.match(/^[-*+]\s+(.+)$/);
     if (ulMatch) {
+      closeBlockquote();
       if (!inList || listType !== "ul") {
-        if (inList) processedLines.push(listType === "ol" ? "</ol>" : "</ul>");
+        closeList();
         processedLines.push('<ul class="ai-ul">');
         inList = true;
         listType = "ul";
@@ -225,8 +253,9 @@ function renderMarkdown(text: string): string {
     // 数字リスト
     const olMatch = trimmed.match(/^\d+[.)]\s+(.+)$/);
     if (olMatch) {
+      closeBlockquote();
       if (!inList || listType !== "ol") {
-        if (inList) processedLines.push(listType === "ol" ? "</ol>" : "</ul>");
+        closeList();
         processedLines.push('<ol class="ai-ol">');
         inList = true;
         listType = "ol";
@@ -235,25 +264,16 @@ function renderMarkdown(text: string): string {
       continue;
     }
 
-    // インデントされたサブリスト項目（  - xxx）
-    const subUlMatch = trimmed.match(/^\s{2,}[-*+]\s+(.+)$/);
-    if (subUlMatch && inList) {
-      processedLines.push(`<li class="ai-sublist">${renderInlineMarkdown(subUlMatch[1])}</li>`);
-      continue;
-    }
-
     // 通常のテキスト段落
-    if (inList) {
-      processedLines.push(listType === "ol" ? "</ol>" : "</ul>");
-      inList = false;
-      listType = null;
-    }
+    closeList();
+    closeBlockquote();
     processedLines.push(`<p class="ai-paragraph">${renderInlineMarkdown(trimmed)}</p>`);
   }
 
-  // 閉じタグの処理
-  if (inList) processedLines.push(listType === "ol" ? "</ol>" : "</ul>");
-  if (inBlockquote) processedLines.push("</blockquote>");
+  // 残りのバッファをフラッシュ
+  flushTable();
+  closeList();
+  closeBlockquote();
 
   return processedLines.join("\n");
 }
@@ -541,18 +561,6 @@ export function AIAssistCard({
           justify-content: center;
         }
 
-        .ai-sublist {
-          padding-left: 2.5rem !important;
-          font-size: 0.8125rem !important;
-          color: #6b7280 !important;
-        }
-        .ai-sublist::before {
-          width: 5px !important;
-          height: 5px !important;
-          background: #a5b4fc !important;
-          left: 1.375rem !important;
-        }
-
         .ai-blockquote {
           border-left: 4px solid #a5b4fc;
           background: #f5f3ff;
@@ -608,8 +616,12 @@ export function AIAssistCard({
           vertical-align: top;
         }
 
-        .ai-table tbody tr:hover {
+        .ai-table tbody tr:nth-child(even) {
           background: #fafbff;
+        }
+
+        .ai-table tbody tr:hover {
+          background: #eef2ff;
         }
 
         .ai-table tbody tr:last-child td {

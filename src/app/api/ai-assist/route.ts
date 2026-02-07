@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import prisma from "@/lib/prisma";
+import { getSession } from "@/lib/session";
+import { checkAnalysisUsage, logUsage, PlanType } from "@/lib/plan-limits";
 
 // OpenAI clientは遅延初期化（ビルド時のエラーを回避）
 let openaiClient: OpenAI | null = null;
@@ -18,6 +20,34 @@ function getOpenAIClient() {
 // POST /api/ai-assist - AIによるデータ分析と提案を生成
 export async function POST(request: NextRequest) {
   try {
+    // セッション確認とプラン制限チェック
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ success: false, error: "認証が必要です" }, { status: 401 });
+    }
+
+    const userRecord = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { plan: true, role: true },
+    });
+    const userPlan = (userRecord?.plan || "free") as PlanType;
+
+    // マスター管理者以外はプラン制限チェック
+    if (userRecord?.role !== "master_admin") {
+      const usageCheck = await checkAnalysisUsage(session.userId, userPlan);
+      if (!usageCheck.allowed) {
+        return NextResponse.json({
+          success: false,
+          error: usageCheck.message,
+          usageInfo: {
+            currentCount: usageCheck.currentCount,
+            limit: usageCheck.limit,
+            remaining: usageCheck.remaining,
+          },
+        }, { status: 429 });
+      }
+    }
+
     const body = await request.json();
     const { type, industryId, data, platform } = body;
 
@@ -31,11 +61,11 @@ export async function POST(request: NextRequest) {
     let prompt = "";
     let systemPrompt = "";
 
-    const platformLabel = platform === "youtube" ? "YouTube Shorts" : "TikTok";
+    const platformLabel = platform === "instagram" ? "Instagram Reels" : platform === "youtube" ? "YouTube Shorts" : "TikTok";
 
     if (type === "dashboard") {
       // ダッシュボード用の分析
-      systemPrompt = `あなたはSNSショート動画（TikTok / YouTube Shorts）の専門アナリストです。
+      systemPrompt = `あなたはSNSショート動画（TikTok / YouTube Shorts / Instagram Reels）の専門アナリストです。
 データを分析し、業種に特化した具体的で実用的なアドバイスを提供してください。
 回答は日本語で、300文字程度で簡潔にまとめてください。
 箇条書きは使わず、自然な文章で回答してください。`;
@@ -70,7 +100,7 @@ ${data.durationStats?.map((s: { category: string; avgEngagement: number; count: 
 
       const industryName = industry?.name || "全業種";
 
-      systemPrompt = `あなたはSNSショート動画（TikTok / YouTube Shorts）の専門アナリストです。
+      systemPrompt = `あなたはSNSショート動画（TikTok / YouTube Shorts / Instagram Reels）の専門アナリストです。
 以下に提供するデータをもとに、再生数・エンゲージメントが高い投稿の傾向を多角的に分析してください。
 曖昧な一般論ではなく、提供データの数値・事例を引用しながら説明してください。
 回答はMarkdown形式で、見出し（##, ###）を使って構造的に出力してください。
@@ -208,6 +238,23 @@ ${videoDataList}
     });
 
     const analysis = completion.choices[0]?.message?.content || "分析を生成できませんでした。";
+
+    // AI分析結果をDBに保存
+    try {
+      await prisma.aiAnalysis.create({
+        data: {
+          type,
+          platform: platform || 'tiktok',
+          industryId: industryId ? parseInt(industryId) : null,
+          analysis,
+        },
+      });
+    } catch (saveError) {
+      console.error('AI分析結果の保存に失敗:', saveError);
+    }
+
+    // 使用量ログを記録
+    await logUsage(session.userId, "analysis", platform || "tiktok", industryId ? parseInt(industryId) : undefined, `type: ${type}`);
 
     return NextResponse.json({
       success: true,

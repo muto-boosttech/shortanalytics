@@ -31,7 +31,7 @@ model IndustryHashtag {
   industryId Int      @map("industry_id")
   hashtag    String
   isActive   Boolean  @default(true) @map("is_active")
-  platform   String   @default("tiktok") // 'tiktok' | 'youtube'
+  platform   String   @default("tiktok") // 'tiktok' | 'youtube' | 'instagram'
 
   industry Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
 
@@ -57,7 +57,7 @@ model Video {
   thumbnailUrl         String?   @map("thumbnail_url")
   collectedAt          DateTime  @default(now()) @map("collected_at")
   source               String?
-  platform             String    @default("tiktok") // 'tiktok' | 'youtube'
+  platform             String    @default("tiktok") // 'tiktok' | 'youtube' | 'instagram'
 
   videoTags VideoTag[]
 
@@ -95,7 +95,7 @@ model Benchmark {
   topHookTypes      Json?    @map("top_hook_types") @db.JsonB
   sampleSize        Int      @default(0) @map("sample_size")
   calculatedAt      DateTime @default(now()) @map("calculated_at")
-  platform          String   @default("tiktok") // 'tiktok' | 'youtube'
+  platform          String   @default("tiktok") // 'tiktok' | 'youtube' | 'instagram'
 
   industry Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
 
@@ -115,14 +115,27 @@ model CollectionLog {
   startedAt       DateTime  @default(now()) @map("started_at")
   completedAt     DateTime? @map("completed_at")
   errorMessage    String?   @map("error_message")
-  platform        String    @default("tiktok") // 'tiktok' | 'youtube'
+  platform        String    @default("tiktok") // 'tiktok' | 'youtube' | 'instagram'
 
   industry Industry? @relation(fields: [industryId], references: [id], onDelete: SetNull)
 
   @@map("collection_logs")
 }
 
-// 7. profiles - ユーザープロファイル
+// 7. ai_analyses - AI分析結果
+model AiAnalysis {
+  id         Int      @id @default(autoincrement())
+  type       String   // 'dashboard' | 'ranking'
+  platform   String   @default("tiktok") // 'tiktok' | 'youtube' | 'instagram'
+  industryId Int?     @map("industry_id")
+  analysis   String   @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([type, platform, industryId])
+  @@map("ai_analyses")
+}
+
+// 8. profiles - ユーザープロファイル
 model Profile {
   id          Int      @id @default(autoincrement())
   email       String   @unique
@@ -131,4 +144,51 @@ model Profile {
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("profiles")
+}
+
+// 9. users - ユーザー管理
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  password     String   // bcryptハッシュ
+  displayName  String?  @map("display_name")
+  email        String?  @unique
+  role         String   @default("viewer") // 'master_admin' | 'admin' | 'viewer'
+  plan         String   @default("free") // 'free' | 'starter' | 'premium' | 'max'
+  isActive     Boolean  @default(true) @map("is_active")
+  createdById  Int?     @map("created_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  lastLoginAt  DateTime? @map("last_login_at")
+
+  // Stripe連携
+  stripeCustomerId     String?   @unique @map("stripe_customer_id")
+  stripeSubscriptionId String?   @unique @map("stripe_subscription_id")
+  stripePriceId        String?   @map("stripe_price_id")
+  subscriptionStatus   String?   @map("subscription_status") // 'active' | 'canceled' | 'past_due' | 'trialing' | null
+  currentPeriodEnd     DateTime? @map("current_period_end")
+  cancelAtPeriodEnd    Boolean   @default(false) @map("cancel_at_period_end")
+  trialEndsAt          DateTime? @map("trial_ends_at")
+
+  createdBy    User?    @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdUsers User[]   @relation("UserCreatedBy")
+  usageLogs    UsageLog[]
+
+  @@map("users")
+}
+
+// 10. usage_logs - 使用量ログ
+model UsageLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  actionType  String   @map("action_type") // 'refresh' | 'analysis' | 'export'
+  platform    String?  // 'tiktok' | 'youtube' | 'instagram'
+  industryId  Int?     @map("industry_id")
+  detail      String?  // 追加情報
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, actionType, createdAt])
+  @@map("usage_logs")
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -21,8 +21,11 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { Calendar, Eye, Heart, TrendingUp, Video, Youtube } from "lucide-react";
+import { Calendar, Eye, Heart, TrendingUp, Video, Youtube, Instagram } from "lucide-react";
 import { AIAssistCard } from "@/components/ai-assist-card";
+import { ExportButton } from "@/components/export-button";
+import { RefreshButton } from "@/components/refresh-button";
+import { UsageBanner } from "@/components/usage-banner";
 
 interface Industry {
   id: number;
@@ -82,7 +85,7 @@ export default function DashboardPage() {
   const [selectedIndustry, setSelectedIndustry] = useState<string>("");
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [platform, setPlatform] = useState<"tiktok" | "youtube">("tiktok");
+  const [platform, setPlatform] = useState<"tiktok" | "youtube" | "instagram">("tiktok");
 
   useEffect(() => {
     fetch("/api/industries")
@@ -97,7 +100,7 @@ export default function DashboardPage() {
       });
   }, []);
 
-  useEffect(() => {
+  const fetchDashboardData = useCallback(() => {
     if (selectedIndustry) {
       setLoading(true);
       fetch(`/api/dashboard?industry_id=${selectedIndustry}&platform=${platform}`)
@@ -110,6 +113,10 @@ export default function DashboardPage() {
         });
     }
   }, [selectedIndustry, platform]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const kpiCards = dashboardData
     ? [
@@ -194,6 +201,17 @@ export default function DashboardPage() {
                 <Youtube className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 YouTube
               </button>
+              <button
+                onClick={() => setPlatform("instagram")}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+                  platform === "instagram"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <Instagram className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                Instagram
+              </button>
             </div>
             <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
               <SelectTrigger className="w-full sm:w-[200px]">
@@ -207,8 +225,24 @@ export default function DashboardPage() {
                 ))}
               </SelectContent>
             </Select>
+            <RefreshButton
+              type="full"
+              platform={platform}
+              industryId={selectedIndustry}
+              onRefreshComplete={fetchDashboardData}
+              label="データ更新"
+            />
+            <ExportButton
+              type="dashboard"
+              platform={platform}
+              industryId={selectedIndustry}
+              industryName={industries.find(i => i.id.toString() === selectedIndustry)?.name || "全業種"}
+            />
           </div>
         </div>
+
+        {/* Usage Banner */}
+        <UsageBanner />
 
         {loading ? (
           <div className="flex h-64 items-center justify-center">
@@ -276,7 +310,7 @@ export default function DashboardPage() {
                       <BarChart
                         data={dashboardData?.charts.contentTypeStats || []}
                         layout="vertical"
-                        margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                        margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                         <XAxis
@@ -289,8 +323,8 @@ export default function DashboardPage() {
                         <YAxis 
                           dataKey="type" 
                           type="category" 
-                          width={60} 
-                          fontSize={10}
+                          width={90} 
+                          fontSize={11}
                           tickLine={false}
                           axisLine={false}
                         />
@@ -323,7 +357,7 @@ export default function DashboardPage() {
                       <BarChart
                         data={dashboardData?.charts.hookTypeStats || []}
                         layout="vertical"
-                        margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                        margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                         <XAxis
@@ -336,8 +370,8 @@ export default function DashboardPage() {
                         <YAxis 
                           dataKey="type" 
                           type="category" 
-                          width={70} 
-                          fontSize={10}
+                          width={100} 
+                          fontSize={11}
                           tickLine={false}
                           axisLine={false}
                         />
@@ -384,7 +418,7 @@ export default function DashboardPage() {
                       <BarChart
                         data={sortedDurationStats}
                         layout="vertical"
-                        margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                        margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                         <XAxis
@@ -397,7 +431,7 @@ export default function DashboardPage() {
                         <YAxis 
                           dataKey="category" 
                           type="category" 
-                          width={55} 
+                          width={70} 
                           fontSize={10}
                           tickLine={false}
                           axisLine={false}

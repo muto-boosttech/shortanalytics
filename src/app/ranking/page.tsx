@@ -30,8 +30,12 @@ import {
   ChevronUp,
   Video,
   Youtube,
+  Instagram,
 } from "lucide-react";
 import { AIAssistCard } from "@/components/ai-assist-card";
+import { ExportButton } from "@/components/export-button";
+import { RefreshButton } from "@/components/refresh-button";
+import { UsageBanner } from "@/components/usage-banner";
 
 interface Industry {
   id: number;
@@ -100,7 +104,7 @@ export default function RankingPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
-  const [platform, setPlatform] = useState<"tiktok" | "youtube">("tiktok");
+  const [platform, setPlatform] = useState<"tiktok" | "youtube" | "instagram">("tiktok");
 
   useEffect(() => {
     fetch("/api/industries")
@@ -175,8 +179,11 @@ export default function RankingPage() {
   return (
     <MainLayout>
       <div className="space-y-4 sm:space-y-6">
+        {/* Usage Banner */}
+        <UsageBanner />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">ランキング</h1>
+          <div className="flex items-center gap-2 sm:gap-3">
           {/* Platform Toggle */}
           <div className="flex rounded-lg border border-gray-200 bg-gray-100 p-1">
             <button
@@ -207,6 +214,36 @@ export default function RankingPage() {
               <Youtube className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               YouTube
             </button>
+            <button
+              onClick={() => {
+                setPlatform("instagram");
+                setPage(1);
+              }}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+                platform === "instagram"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <Instagram className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              Instagram
+            </button>
+          </div>
+          <RefreshButton
+            type="full"
+            platform={platform}
+            industryId={selectedIndustry !== "all" ? selectedIndustry : undefined}
+            onRefreshComplete={fetchVideos}
+            label="データ更新"
+          />
+          <ExportButton
+            type="ranking"
+            platform={platform}
+            industryId={selectedIndustry}
+            industryName={industries.find(i => i.id.toString() === selectedIndustry)?.name || "全業種"}
+            sortBy={sortBy.split("_")[0]}
+            sortOrder={sortBy.split("_")[1]}
+          />
           </div>
         </div>
 

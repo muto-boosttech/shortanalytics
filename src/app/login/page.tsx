@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
+import { Suspense } from "react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isExpired = searchParams.get("expired") === "true";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -41,7 +45,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 px-4 py-8 sm:px-6">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-blue-50 px-4 py-8 sm:px-6">
       <div className="w-full max-w-md">
         {/* ロゴ */}
         <div className="text-center mb-6 sm:mb-8">
@@ -56,6 +60,21 @@ export default function LoginPage() {
             />
           </div>
         </div>
+
+        {/* Freeプラン期限切れメッセージ */}
+        {isExpired && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <svg className="h-5 w-5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span className="font-semibold text-amber-800">無料トライアル期間が終了しました</span>
+            </div>
+            <p className="text-sm text-amber-700">
+              Freeプランの7日間トライアル期間が終了しました。引き続きご利用いただくには、プランのアップグレードが必要です。管理者にお問い合わせください。
+            </p>
+          </div>
+        )}
 
         {/* ログインフォーム */}
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl p-6 sm:p-8">
@@ -77,7 +96,7 @@ export default function LoginPage() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-sm sm:text-base"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-sm sm:text-base"
                 placeholder="ユーザーIDを入力"
                 required
               />
@@ -92,7 +111,7 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-sm sm:text-base"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-sm sm:text-base"
                 placeholder="パスワードを入力"
                 required
               />
@@ -101,7 +120,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 sm:py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 sm:py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               {isLoading ? (
                 <>
@@ -123,10 +142,38 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-gray-500 text-xs sm:text-sm mt-4 sm:mt-6">
-          © 2026 BOOSTTECH. All rights reserved.
+        {/* 新規登録リンク */}
+        <div className="text-center mt-4 sm:mt-6">
+          <p className="text-gray-600 text-xs sm:text-sm">
+            アカウントをお持ちでない方は
+          </p>
+          <Link
+            href="/signup"
+            className="inline-flex items-center gap-1.5 mt-2 text-emerald-600 hover:text-emerald-700 font-semibold text-sm sm:text-base transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+            新規申し込みはこちら
+          </Link>
+        </div>
+
+        <p className="text-center text-gray-500 text-xs sm:text-sm mt-3 sm:mt-4">
+          &copy; 2026 BOOSTTECH. All rights reserved.
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-blue-50">
+        <div className="text-gray-500">読み込み中...</div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

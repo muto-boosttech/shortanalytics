@@ -4,19 +4,31 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
 import {
   LayoutDashboard,
   Trophy,
   Database,
   Settings,
+  Users,
   X,
+  CreditCard,
 } from "lucide-react";
 
-const navigation = [
+interface NavItem {
+  name: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  requiredRole?: string[];
+}
+
+const navigation: NavItem[] = [
   { name: "ダッシュボード", href: "/dashboard", icon: LayoutDashboard },
   { name: "ランキング", href: "/ranking", icon: Trophy },
   { name: "データ収集", href: "/collect", icon: Database },
-  { name: "タギング&BM", href: "/admin", icon: Settings },
+  { name: "タギング&BM", href: "/admin", icon: Settings, requiredRole: ["master_admin", "admin"] },
+  { name: "ユーザー管理", href: "/users", icon: Users, requiredRole: ["master_admin", "admin"] },
+  { name: "プラン・お支払い", href: "/settings", icon: CreditCard },
 ];
 
 interface SidebarProps {
@@ -26,6 +38,13 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  // ロールに基づいてナビゲーション項目をフィルタリング
+  const filteredNavigation = navigation.filter((item) => {
+    if (!item.requiredRole) return true;
+    return user?.role && item.requiredRole.includes(user.role);
+  });
 
   return (
     <>
@@ -65,7 +84,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           </button>
         </div>
         <nav className="space-y-1 p-4">
-          {navigation.map((item) => {
+          {filteredNavigation.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link

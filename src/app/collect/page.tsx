@@ -36,7 +36,10 @@ import {
   FileText,
   Video,
   Youtube,
+  Instagram,
 } from "lucide-react";
+import { RefreshButton } from "@/components/refresh-button";
+import { UsageBanner } from "@/components/usage-banner";
 
 interface Industry {
   id: number;
@@ -88,7 +91,7 @@ export default function CollectPage() {
   const [logs, setLogs] = useState<CollectionLog[]>([]);
   const [csvUploading, setCsvUploading] = useState(false);
   const [csvResult, setCsvResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [platform, setPlatform] = useState<"tiktok" | "youtube">("tiktok");
+  const [platform, setPlatform] = useState<"tiktok" | "youtube" | "instagram">("tiktok");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -187,7 +190,7 @@ export default function CollectPage() {
 
     try {
       // プラットフォームに応じてAPIエンドポイントを選択
-      const endpoint = platform === "youtube" ? "/api/collect-youtube" : "/api/collect";
+      const endpoint = platform === "instagram" ? "/api/collect-instagram" : platform === "youtube" ? "/api/collect-youtube" : "/api/collect";
       
       const response = await fetch(endpoint, {
         method: "POST",
@@ -206,7 +209,7 @@ export default function CollectPage() {
       if (data.success) {
         setResult({
           success: true,
-          message: `${platform === "youtube" ? "YouTube Shorts" : "TikTok"}の収集が完了しました`,
+          message: `${platform === "instagram" ? "Instagram Reels" : platform === "youtube" ? "YouTube Shorts" : "TikTok"}の収集が完了しました`,
           data: {
             videosCollected: data.data.videosCollected,
             videosNew: data.data.videosNew,
@@ -285,14 +288,27 @@ export default function CollectPage() {
     if (platformValue === "youtube") {
       return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">YouTube</Badge>;
     }
+    if (platformValue === "instagram") {
+      return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">Instagram</Badge>;
+    }
     return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">TikTok</Badge>;
   };
 
   return (
     <MainLayout>
       <div className="space-y-6">
+        {/* Usage Banner */}
+        <UsageBanner />
+
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">データ収集</h1>
+          <div className="flex items-center gap-2 sm:gap-3">
+          <RefreshButton
+            type="collect"
+            platform={platform}
+            onRefreshComplete={fetchLogs}
+            label="全業種一括収集"
+          />
           {/* Platform Toggle */}
           <div className="flex rounded-lg border border-gray-200 bg-gray-100 p-1">
             <button
@@ -317,6 +333,18 @@ export default function CollectPage() {
               <Youtube className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               YouTube
             </button>
+            <button
+              onClick={() => setPlatform("instagram")}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+                platform === "instagram"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <Instagram className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              Instagram
+            </button>
+          </div>
           </div>
         </div>
 
@@ -357,12 +385,14 @@ export default function CollectPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              {platform === "youtube" ? (
+              {platform === "instagram" ? (
+                <Instagram className="h-5 w-5 text-purple-500" />
+              ) : platform === "youtube" ? (
                 <Youtube className="h-5 w-5 text-red-500" />
               ) : (
                 <Video className="h-5 w-5" />
               )}
-              {platform === "youtube" ? "YouTube Shorts" : "TikTok"} 収集設定
+              {platform === "instagram" ? "Instagram Reels" : platform === "youtube" ? "YouTube Shorts" : "TikTok"} 収集設定
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -425,7 +455,7 @@ export default function CollectPage() {
               <Button
                 onClick={startCollection}
                 disabled={collecting || !selectedIndustry || selectedHashtags.length === 0}
-                className={platform === "youtube" ? "bg-red-600 hover:bg-red-700" : ""}
+                className={platform === "instagram" ? "bg-purple-600 hover:bg-purple-700" : platform === "youtube" ? "bg-red-600 hover:bg-red-700" : ""}
               >
                 {collecting ? (
                   <>
@@ -435,7 +465,7 @@ export default function CollectPage() {
                 ) : (
                   <>
                     <Play className="h-4 w-4" />
-                    {platform === "youtube" ? "YouTube Shorts" : "TikTok"} 収集開始
+                    {platform === "instagram" ? "Instagram Reels" : platform === "youtube" ? "YouTube Shorts" : "TikTok"} 収集開始
                   </>
                 )}
               </Button>
