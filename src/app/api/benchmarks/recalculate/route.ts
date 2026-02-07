@@ -7,9 +7,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { industryId, periodDays = 30 } = body;
 
-    // 期間の設定
+    // 期間の設定: 前日から1か月前まで
     const periodEnd = new Date();
-    const periodStart = new Date(periodEnd.getTime() - periodDays * 24 * 60 * 60 * 1000);
+    periodEnd.setDate(periodEnd.getDate() - 1); // 前日
+    periodEnd.setHours(23, 59, 59, 999);
+    const periodStart = new Date(periodEnd);
+    periodStart.setMonth(periodStart.getMonth() - 1); // 1か月前
+    periodStart.setHours(0, 0, 0, 0);
 
     // 対象業種を取得
     let industries;

@@ -10,12 +10,17 @@ export async function GET(request: NextRequest) {
     const platform = searchParams.get("platform") || "tiktok"; // 'tiktok' | 'youtube'
 
     const periodDays = parseInt(period);
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - periodDays);
+    // 投稿期間: 前日から1か月前まで
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() - 1); // 前日
+    endDate.setHours(23, 59, 59, 999);
+    const startDate = new Date(endDate);
+    startDate.setMonth(startDate.getMonth() - 1); // 1か月前
+    startDate.setHours(0, 0, 0, 0);
 
     // フィルタ条件
-    const videoWhere: { postedAt?: { gte: Date }; videoTags?: { some: { industryId: number } }; platform?: string } = {
-      postedAt: { gte: startDate },
+    const videoWhere: { postedAt?: { gte: Date; lte: Date }; videoTags?: { some: { industryId: number } }; platform?: string } = {
+      postedAt: { gte: startDate, lte: endDate },
       platform: platform,
     };
 

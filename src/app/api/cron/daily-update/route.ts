@@ -152,6 +152,64 @@ export async function GET(request: Request) {
       await delay(2000);
     }
 
+    // 1.8. 全業種のInstagram Reelsを収集
+    console.log("Starting daily Instagram Reels data collection...");
+    
+    for (const industry of industries) {
+      let success = false;
+      let lastError = null;
+      let retryCount = 0;
+      
+      for (let attempt = 1; attempt <= MAX_COLLECTION_RETRIES && !success; attempt++) {
+        try {
+          console.log(`Collecting Instagram Reels for ${industry.name} (attempt ${attempt}/${MAX_COLLECTION_RETRIES})...`);
+          const collectRes = await fetch(`${baseUrl}/api/collect-instagram`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ industryId: industry.id }),
+          });
+          const collectData = await collectRes.json();
+          
+          if (collectData.success) {
+            results.collections.push({
+              industryId: industry.id,
+              industryName: industry.name,
+              platform: "instagram",
+              status: "success",
+              videos: collectData.data?.videosNew || 0,
+              retries: attempt - 1,
+            });
+            success = true;
+          } else {
+            throw new Error(collectData.error || "Collection failed");
+          }
+        } catch (error) {
+          lastError = error;
+          retryCount = attempt;
+          console.error(`Error collecting Instagram for ${industry.name} (attempt ${attempt}):`, error);
+          
+          if (attempt < MAX_COLLECTION_RETRIES) {
+            console.log(`Waiting ${RETRY_DELAY_MS / 1000}s before retry...`);
+            await delay(RETRY_DELAY_MS);
+          }
+        }
+      }
+      
+      if (!success) {
+        results.collections.push({
+          industryId: industry.id,
+          industryName: industry.name,
+          platform: "instagram",
+          status: "failed",
+          retries: retryCount,
+        });
+        console.error(`Failed to collect Instagram for ${industry.name} after ${MAX_COLLECTION_RETRIES} attempts`);
+      }
+      
+      // API制限を避けるため少し待機
+      await delay(2000);
+    }
+
     // 2. 全動画のタグ付けを実行
     console.log("Starting auto-tagging...");
     try {
@@ -206,7 +264,7 @@ export async function GET(request: Request) {
       
       for (const failed of failedCollections) {
         try {
-          const endpoint = failed.platform === "youtube" ? "/api/collect-youtube" : "/api/collect";
+          const endpoint = failed.platform === "instagram" ? "/api/collect-instagram" : failed.platform === "youtube" ? "/api/collect-youtube" : "/api/collect";
           console.log(`Final retry for ${failed.industryName} (${failed.platform})...`);
           const collectRes = await fetch(`${baseUrl}${endpoint}`, {
             method: "POST",

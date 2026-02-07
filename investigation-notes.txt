@@ -1,0 +1,30 @@
+投稿期間の変更に関する調査結果:
+
+1. ダッシュボードAPI (/api/dashboard/route.ts):
+   - periodパラメータ（デフォルト30日）で startDate を計算
+   - startDate = 今日 - periodDays
+   - フロントエンドからはperiodパラメータを渡していない（デフォルト30日を使用）
+   → 変更: startDate を「前日から1か月前」に変更する必要がある
+   → つまり startDate = 昨日 - 30日, endDate = 昨日
+
+2. cron daily-update (/api/cron/daily-update/route.ts):
+   - 毎日実行される自動更新
+   - TikTok, YouTube, Instagram の収集を実行
+   - Instagram収集も含まれている（collect-instagram APIを呼んでいないが、refreshで対応可能）
+   → Instagram収集をcronに追加する必要がある
+
+3. collect API群:
+   - /api/collect (TikTok) - Apify TikTok Hashtag Scraper
+   - /api/collect-youtube - Apify YouTube Scraper  
+   - /api/collect-instagram - Apify Instagram Hashtag Scraper
+   - これらは投稿期間のフィルタを持っていない（Apifyが返すデータをそのまま保存）
+
+4. フロントエンド (dashboard/page.tsx):
+   - periodパラメータを渡していない
+   - dataRangeでpostedFrom/postedToを表示している
+   → 投稿期間を「前日〜1か月前」に固定する
+
+対応方針:
+A. ダッシュボードAPIの期間計算を「前日〜1か月前」に変更
+B. cron daily-updateにInstagram収集を追加
+C. フロントエンドの投稿期間表示を更新

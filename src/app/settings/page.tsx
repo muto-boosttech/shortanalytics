@@ -13,6 +13,11 @@ import {
   ArrowUpRight,
   XCircle,
   RotateCcw,
+  Users,
+  DollarSign,
+  BarChart3,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 interface SubscriptionInfo {
@@ -25,6 +30,40 @@ interface SubscriptionInfo {
   hasStripeSubscription: boolean;
   trialEndsAt: string | null;
   createdAt: string;
+}
+
+interface PlanUser {
+  id: number;
+  username: string;
+  displayName: string | null;
+  email: string | null;
+  role: string;
+  subscriptionStatus: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+  trialEndsAt: string | null;
+}
+
+interface PlanStat {
+  plan: string;
+  label: string;
+  price: number;
+  userCount: number;
+  activeSubscribers: number;
+  cancelingUsers: number;
+  monthlyRevenue: number;
+  users: PlanUser[];
+}
+
+interface PlanStatsData {
+  summary: {
+    totalUsers: number;
+    totalActiveSubscribers: number;
+    totalMonthlyRevenue: number;
+  };
+  plans: PlanStat[];
 }
 
 const PLAN_FEATURES: Record<string, string[]> = {
@@ -54,17 +93,32 @@ const PLAN_FEATURES: Record<string, string[]> = {
   ],
 };
 
+const PLAN_COLORS: Record<string, string> = {
+  free: "bg-gray-100 text-gray-700 border-gray-200",
+  starter: "bg-blue-50 text-blue-700 border-blue-200",
+  premium: "bg-purple-50 text-purple-700 border-purple-200",
+  max: "bg-amber-50 text-amber-700 border-amber-200",
+};
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
+  const [planStats, setPlanStats] = useState<PlanStatsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [adminLoading, setAdminLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const isMasterAdmin = user?.role === "master_admin";
 
   useEffect(() => {
     fetchSubscription();
-  }, []);
+    if (isMasterAdmin) {
+      fetchPlanStats();
+    }
+  }, [isMasterAdmin]);
 
   const fetchSubscription = async () => {
     try {
@@ -77,6 +131,21 @@ export default function SettingsPage() {
       console.error("Failed to fetch subscription:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPlanStats = async () => {
+    setAdminLoading(true);
+    try {
+      const res = await fetch("/api/admin/plan-stats");
+      const data = await res.json();
+      if (data.success) {
+        setPlanStats(data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch plan stats:", error);
+    } finally {
+      setAdminLoading(false);
     }
   };
 
@@ -177,6 +246,14 @@ export default function SettingsPage() {
     });
   };
 
+  const formatShortDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString("ja-JP", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  };
+
   const getStatusBadge = () => {
     if (!subscription) return null;
 
@@ -223,12 +300,43 @@ export default function SettingsPage() {
     }
   };
 
+  const getUserStatusBadge = (u: PlanUser) => {
+    if (u.cancelAtPeriodEnd) {
+      return (
+        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+          解約予約
+        </span>
+      );
+    }
+    if (u.subscriptionStatus === "active") {
+      return (
+        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+          有効
+        </span>
+      );
+    }
+    if (u.subscriptionStatus === "past_due") {
+      return (
+        <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+          支払い遅延
+        </span>
+      );
+    }
+    return (
+      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+        未課金
+      </span>
+    );
+  };
+
   return (
     <MainLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-5xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">プラン・お支払い</h1>
-          <p className="text-gray-500 mt-1">サブスクリプションの管理</p>
+          <p className="text-gray-500 mt-1">
+            {isMasterAdmin ? "プラン管理・ユーザー統計・売上情報" : "サブスクリプションの管理"}
+          </p>
         </div>
 
         {message && (
@@ -243,6 +351,193 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* ===== マスター管理者用: プラン別ユーザー・売上 ===== */}
+        {isMasterAdmin && (
+          <>
+            {adminLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+              </div>
+            ) : planStats ? (
+              <>
+                {/* サマリーカード */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                        <Users className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <p className="text-sm text-gray-500">総ユーザー数</p>
+                    </div>
+                    <p className="text-3xl font-black text-gray-900">
+                      {planStats.summary.totalUsers}
+                      <span className="text-base font-normal text-gray-500 ml-1">人</span>
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                        <CreditCard className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <p className="text-sm text-gray-500">有料会員数</p>
+                    </div>
+                    <p className="text-3xl font-black text-gray-900">
+                      {planStats.summary.totalActiveSubscribers}
+                      <span className="text-base font-normal text-gray-500 ml-1">人</span>
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                        <DollarSign className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <p className="text-sm text-gray-500">月間売上</p>
+                    </div>
+                    <p className="text-3xl font-black text-gray-900">
+                      ¥{planStats.summary.totalMonthlyRevenue.toLocaleString()}
+                      <span className="text-base font-normal text-gray-500 ml-1">/月</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* プラン別詳細 */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="p-6 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <BarChart3 className="w-5 h-5 text-gray-700" />
+                      <h2 className="text-lg font-bold text-gray-900">プラン別ユーザー・売上</h2>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-gray-100">
+                    {planStats.plans.map((plan) => (
+                      <div key={plan.plan}>
+                        {/* プラン行 */}
+                        <button
+                          onClick={() =>
+                            setExpandedPlan(expandedPlan === plan.plan ? null : plan.plan)
+                          }
+                          className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-4">
+                            <span
+                              className={`px-3 py-1 rounded-lg text-sm font-bold border ${
+                                PLAN_COLORS[plan.plan] || "bg-gray-100 text-gray-700 border-gray-200"
+                              }`}
+                            >
+                              {plan.label}
+                            </span>
+                            <div className="text-left">
+                              <p className="text-sm text-gray-500">
+                                {plan.price > 0
+                                  ? `¥${plan.price.toLocaleString()}/月`
+                                  : "無料"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-6">
+                            <div className="text-right">
+                              <p className="text-sm text-gray-500">ユーザー</p>
+                              <p className="text-lg font-bold text-gray-900">
+                                {plan.userCount}
+                                <span className="text-xs font-normal text-gray-500 ml-0.5">人</span>
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-gray-500">有料会員</p>
+                              <p className="text-lg font-bold text-emerald-600">
+                                {plan.activeSubscribers}
+                                <span className="text-xs font-normal text-gray-500 ml-0.5">人</span>
+                              </p>
+                            </div>
+                            {plan.cancelingUsers > 0 && (
+                              <div className="text-right">
+                                <p className="text-sm text-gray-500">解約予約</p>
+                                <p className="text-lg font-bold text-amber-600">
+                                  {plan.cancelingUsers}
+                                  <span className="text-xs font-normal text-gray-500 ml-0.5">人</span>
+                                </p>
+                              </div>
+                            )}
+                            <div className="text-right min-w-[120px]">
+                              <p className="text-sm text-gray-500">月間売上</p>
+                              <p className="text-lg font-bold text-gray-900">
+                                ¥{plan.monthlyRevenue.toLocaleString()}
+                              </p>
+                            </div>
+                            {expandedPlan === plan.plan ? (
+                              <ChevronUp className="w-5 h-5 text-gray-400" />
+                            ) : (
+                              <ChevronDown className="w-5 h-5 text-gray-400" />
+                            )}
+                          </div>
+                        </button>
+
+                        {/* ユーザー一覧（展開時） */}
+                        {expandedPlan === plan.plan && plan.users.length > 0 && (
+                          <div className="bg-gray-50 px-6 py-4">
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="text-left text-gray-500 border-b border-gray-200">
+                                    <th className="pb-2 font-medium">ユーザー名</th>
+                                    <th className="pb-2 font-medium">表示名</th>
+                                    <th className="pb-2 font-medium">メール</th>
+                                    <th className="pb-2 font-medium">権限</th>
+                                    <th className="pb-2 font-medium">ステータス</th>
+                                    <th className="pb-2 font-medium">登録日</th>
+                                    <th className="pb-2 font-medium">最終ログイン</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                  {plan.users.map((u) => (
+                                    <tr key={u.id} className="text-gray-700">
+                                      <td className="py-2.5 font-medium">{u.username}</td>
+                                      <td className="py-2.5">{u.displayName || "-"}</td>
+                                      <td className="py-2.5 text-gray-500">{u.email || "-"}</td>
+                                      <td className="py-2.5">
+                                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                                          {u.role === "master_admin"
+                                            ? "マスター管理者"
+                                            : u.role === "admin"
+                                            ? "管理者"
+                                            : "一般"}
+                                        </span>
+                                      </td>
+                                      <td className="py-2.5">{getUserStatusBadge(u)}</td>
+                                      <td className="py-2.5 text-gray-500">
+                                        {formatShortDate(u.createdAt)}
+                                      </td>
+                                      <td className="py-2.5 text-gray-500">
+                                        {u.lastLoginAt ? formatShortDate(u.lastLoginAt) : "-"}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            {plan.users.length === 0 && (
+                              <p className="text-center text-gray-400 py-4">
+                                このプランのユーザーはいません
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : null}
+
+            {/* 区切り線 */}
+            <div className="border-t border-gray-200 pt-2">
+              <p className="text-sm text-gray-400">自分のサブスクリプション</p>
+            </div>
+          </>
+        )}
+
+        {/* ===== 通常ユーザー/マスター管理者共通: 自分のサブスクリプション ===== */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
@@ -326,7 +621,7 @@ export default function SettingsPage() {
                   </button>
                 ) : (
                   subscription.hasStripeSubscription &&
-                  subscription.subscriptionStatus === "active" && (
+                  !subscription.cancelAtPeriodEnd && (
                     <button
                       onClick={() => setShowCancelConfirm(true)}
                       disabled={actionLoading}
