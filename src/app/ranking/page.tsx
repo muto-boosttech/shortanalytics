@@ -31,6 +31,7 @@ import {
   Video,
   Youtube,
   Instagram,
+  Calendar,
 } from "lucide-react";
 import { AIAssistCard } from "@/components/ai-assist-card";
 import { ExportButton } from "@/components/export-button";
@@ -43,7 +44,7 @@ interface Industry {
   slug: string;
 }
 
-interface Video {
+interface VideoItem {
   id: number;
   tiktokVideoId: string;
   videoUrl: string;
@@ -64,6 +65,13 @@ interface Video {
     durationCategory: string;
     industry: { name: string };
   }>;
+}
+
+interface DataRange {
+  postedFrom: string | null;
+  postedTo: string | null;
+  collectedFrom: string | null;
+  collectedTo: string | null;
 }
 
 const CONTENT_TYPES = [
@@ -99,12 +107,13 @@ export default function RankingPage() {
   const [selectedContentTypes, setSelectedContentTypes] = useState<string[]>([]);
   const [selectedHookTypes, setSelectedHookTypes] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("viewCount_desc");
-  const [videos, setVideos] = useState<Video[]>([]);
+  const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [platform, setPlatform] = useState<"tiktok" | "youtube" | "instagram">("tiktok");
+  const [dataRange, setDataRange] = useState<DataRange | null>(null);
 
   useEffect(() => {
     fetch("/api/industries")
@@ -122,8 +131,8 @@ export default function RankingPage() {
     const params = new URLSearchParams({
       page: page.toString(),
       limit: "20",
-      sortBy: sortField,
-      sortOrder: sortOrder,
+      sort_by: sortField,
+      sort_order: sortOrder,
     });
 
     if (selectedIndustry !== "all") {
@@ -144,6 +153,9 @@ export default function RankingPage() {
         if (data.success) {
           setVideos(data.data);
           setTotalPages(data.pagination.totalPages);
+          if (data.dataRange) {
+            setDataRange(data.dataRange);
+          }
         }
         setLoading(false);
       });
@@ -172,6 +184,19 @@ export default function RankingPage() {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // 日付フォーマット関数
+  const formatDateFull = (dateStr: string | null) => {
+    if (!dateStr) return "-";
+    const date = new Date(dateStr);
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+  };
+
+  const formatDateShort = (dateStr: string | null) => {
+    if (!dateStr) return "-";
+    const date = new Date(dateStr);
+    return `${date.getMonth() + 1}/${date.getDate()}`;
   };
 
   const activeFilterCount = selectedContentTypes.length + selectedHookTypes.length;
@@ -247,6 +272,36 @@ export default function RankingPage() {
           </div>
         </div>
 
+        {/* Data Range Info */}
+        {dataRange && (
+          <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50">
+            <CardContent className="py-3 sm:py-4">
+              <div className="flex flex-col gap-2 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-8 sm:gap-y-2 sm:text-sm">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5 text-emerald-600 sm:h-4 sm:w-4" />
+                  <span className="font-medium text-gray-700">投稿期間:</span>
+                  <span className="text-gray-600 hidden sm:inline">
+                    {formatDateFull(dataRange.postedFrom)} 〜 {formatDateFull(dataRange.postedTo)}
+                  </span>
+                  <span className="text-gray-600 sm:hidden">
+                    {formatDateShort(dataRange.postedFrom)} 〜 {formatDateShort(dataRange.postedTo)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5 text-teal-600 sm:h-4 sm:w-4" />
+                  <span className="font-medium text-gray-700">収集期間:</span>
+                  <span className="text-gray-600 hidden sm:inline">
+                    {formatDateFull(dataRange.collectedFrom)} 〜 {formatDateFull(dataRange.collectedTo)}
+                  </span>
+                  <span className="text-gray-600 sm:hidden">
+                    {formatDateShort(dataRange.collectedFrom)} 〜 {formatDateShort(dataRange.collectedTo)}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Filters */}
         <Card>
           <CardContent className="p-3 sm:p-4">
@@ -308,7 +363,7 @@ export default function RankingPage() {
                   <Filter className="h-4 w-4 mr-1" />
                   フィルター
                   {activeFilterCount > 0 && (
-                    <Badge variant="accent" className="ml-1 h-5 px-1.5">
+                    <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
                       {activeFilterCount}
                     </Badge>
                   )}
@@ -320,48 +375,50 @@ export default function RankingPage() {
                 </Button>
               </div>
 
-              {/* Expandable filters on mobile, always visible on desktop */}
+              {/* Advanced filters */}
               <div className={`space-y-3 ${showFilters ? "block" : "hidden sm:block"}`}>
-                <div className="space-y-2">
-                  <Label className="text-xs sm:text-sm font-medium">コンテンツ類型:</Label>
-                  <div className="flex flex-wrap gap-x-3 gap-y-2 sm:gap-2">
+                <div>
+                  <Label className="text-xs text-gray-500 mb-1.5 block">コンテンツ類型:</Label>
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {CONTENT_TYPES.map((type) => (
-                      <div key={type} className="flex items-center space-x-1.5 sm:space-x-2">
+                      <label
+                        key={type}
+                        className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] sm:text-xs cursor-pointer transition-colors ${
+                          selectedContentTypes.includes(type)
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                            : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
                         <Checkbox
-                          id={`content-${type}`}
                           checked={selectedContentTypes.includes(type)}
                           onCheckedChange={() => toggleContentType(type)}
-                          className="h-4 w-4"
+                          className="h-3 w-3 border-gray-300"
                         />
-                        <Label
-                          htmlFor={`content-${type}`}
-                          className="text-xs sm:text-sm font-normal cursor-pointer"
-                        >
-                          {type}
-                        </Label>
-                      </div>
+                        {type}
+                      </label>
                     ))}
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs sm:text-sm font-medium">フックタイプ:</Label>
-                  <div className="flex flex-wrap gap-x-3 gap-y-2 sm:gap-2">
+                <div>
+                  <Label className="text-xs text-gray-500 mb-1.5 block">フックタイプ:</Label>
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {HOOK_TYPES.map((type) => (
-                      <div key={type} className="flex items-center space-x-1.5 sm:space-x-2">
+                      <label
+                        key={type}
+                        className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] sm:text-xs cursor-pointer transition-colors ${
+                          selectedHookTypes.includes(type)
+                            ? "border-teal-500 bg-teal-50 text-teal-700"
+                            : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
                         <Checkbox
-                          id={`hook-${type}`}
                           checked={selectedHookTypes.includes(type)}
                           onCheckedChange={() => toggleHookType(type)}
-                          className="h-4 w-4"
+                          className="h-3 w-3 border-gray-300"
                         />
-                        <Label
-                          htmlFor={`hook-${type}`}
-                          className="text-xs sm:text-sm font-normal cursor-pointer"
-                        >
-                          {type}
-                        </Label>
-                      </div>
+                        {type}
+                      </label>
                     ))}
                   </div>
                 </div>
@@ -370,118 +427,127 @@ export default function RankingPage() {
           </CardContent>
         </Card>
 
-        {/* AI Assist Card */}
-        {!loading && videos.length > 0 && (
+        {/* AI Assist */}
+        <Card className="bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200">
           <AIAssistCard
             type="ranking"
             industryId={selectedIndustry !== "all" ? selectedIndustry : undefined}
-            platform={platform}
             data={{
-              allVideos: videos.map((v) => ({
-                description: v.description,
-                viewCount: v.viewCount,
-                likeCount: v.likeCount,
-                commentCount: v.commentCount,
-                shareCount: v.shareCount,
-                engagementRate: v.engagementRate,
-                videoDurationSeconds: v.videoDurationSeconds,
-                contentType: v.videoTags?.[0]?.contentType,
-                hookType: v.videoTags?.[0]?.hookType,
-                authorUsername: v.authorUsername,
-                postedAt: v.postedAt,
-                hashtags: v.hashtags,
-              })),
+              totalVideos: videos.length,
+              platform,
+              sortBy: sortBy.split("_")[0],
             }}
-            title="トップ動画の成功パターン"
+            title="ランキング分析"
           />
-        )}
+        </Card>
 
-        {/* Video Cards */}
+        {/* Video List */}
         {loading ? (
           <div className="flex h-64 items-center justify-center">
             <div className="text-gray-500">読み込み中...</div>
           </div>
+        ) : videos.length === 0 ? (
+          <Card>
+            <CardContent className="flex h-48 items-center justify-center">
+              <p className="text-gray-500 text-sm">
+                該当する動画が見つかりません。フィルターを変更してください。
+              </p>
+            </CardContent>
+          </Card>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-              {videos.map((video) => (
-                <Card key={video.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="relative aspect-[9/16]">
-                    <VideoThumbnail
-                      key={`thumb-${video.id}-${video.tiktokVideoId}`}
-                      videoId={video.tiktokVideoId}
-                      thumbnailUrl={video.thumbnailUrl}
-                      description={video.description}
-                      className="h-full w-full"
-                      showPlayIcon={false}
-                    />
-                    <div className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2 rounded bg-black/70 px-1.5 py-0.5 sm:px-2 sm:py-1 text-[10px] sm:text-xs text-white">
-                      {formatDuration(video.videoDurationSeconds)}
-                    </div>
-                  </div>
-                  <CardContent className="p-2 sm:p-3">
-                    <p className="mb-1.5 sm:mb-2 line-clamp-2 text-xs sm:text-sm font-medium">
-                      {video.description}
-                    </p>
-                    <p className="mb-1.5 sm:mb-2 text-[10px] sm:text-xs text-gray-500 truncate">
-                      @{video.authorUsername} · {formatDate(video.postedAt)}
-                    </p>
+            <div className="space-y-3">
+              {videos.map((video, index) => (
+                <Card key={video.id} className="border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
+                  <CardContent className="p-0">
+                    <div className="flex flex-col sm:flex-row">
+                      {/* Rank & Thumbnail */}
+                      <div className="flex items-start gap-2 p-3 sm:p-4">
+                        <div className="flex h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-xs sm:text-sm font-bold text-emerald-700">
+                          {(page - 1) * 20 + index + 1}
+                        </div>
+                        <div className="w-[100px] sm:w-[120px] flex-shrink-0">
+                          <VideoThumbnail
+                            videoId={video.tiktokVideoId}
+                            thumbnailUrl={video.thumbnailUrl}
+                            description={video.description?.substring(0, 50) || "動画"}
+                          />
+                        </div>
+                      </div>
 
-                    <div className="mb-1.5 sm:mb-2 grid grid-cols-2 gap-1 sm:gap-2 text-[10px] sm:text-xs">
-                      <div className="flex items-center gap-0.5 sm:gap-1 text-gray-600">
-                        <Eye className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                        {formatNumber(video.viewCount)}
-                      </div>
-                      <div className="flex items-center gap-0.5 sm:gap-1 text-gray-600">
-                        <Heart className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                        {formatNumber(video.likeCount)}
-                      </div>
-                      <div className="flex items-center gap-0.5 sm:gap-1 text-gray-600">
-                        <MessageCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                        {formatNumber(video.commentCount)}
-                      </div>
-                      <div className="flex items-center gap-0.5 sm:gap-1 text-gray-600">
-                        <Share2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                        {formatNumber(video.shareCount)}
-                      </div>
-                    </div>
+                      {/* Info */}
+                      <div className="flex-1 p-3 pt-0 sm:p-4 sm:pl-0">
+                        <div className="mb-2">
+                          <Link
+                            href={`/videos/${video.id}`}
+                            className="text-sm font-medium text-gray-900 hover:text-emerald-600 line-clamp-2 sm:text-base transition-colors"
+                          >
+                            {video.description?.substring(0, 100) || "（説明なし）"}
+                          </Link>
+                          <p className="mt-0.5 text-[11px] text-gray-500 sm:text-xs">
+                            @{video.authorUsername || "不明"} ・ {formatDate(video.postedAt)}
+                          </p>
+                        </div>
 
-                    <div className="mb-1.5 sm:mb-2">
-                      <Badge variant="accent" className="text-[10px] sm:text-xs px-1.5 sm:px-2">
-                        ER: {formatPercent(video.engagementRate)}
-                      </Badge>
-                    </div>
-
-                    {video.videoTags && video.videoTags.length > 0 && (
-                      <div className="mb-1.5 sm:mb-2 flex flex-wrap gap-1">
-                        {video.videoTags[0]?.contentType && (
-                          <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2">
-                            {video.videoTags[0].contentType}
-                          </Badge>
+                        {/* Tags */}
+                        {video.videoTags && video.videoTags.length > 0 && (
+                          <div className="mb-2 flex flex-wrap gap-1">
+                            {video.videoTags.map((tag, i) => (
+                              <div key={i} className="flex gap-1">
+                                {tag.contentType && (
+                                  <Badge variant="secondary" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+                                    {tag.contentType}
+                                  </Badge>
+                                )}
+                                {tag.hookType && (
+                                  <Badge variant="secondary" className="text-[10px] bg-teal-50 text-teal-700 border-teal-200">
+                                    {tag.hookType}
+                                  </Badge>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         )}
-                        {video.videoTags[0]?.hookType && (
-                          <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2 hidden sm:inline-flex">
-                            {video.videoTags[0].hookType}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
 
-                    <div className="flex gap-1.5 sm:gap-2">
-                      <Link href={`/videos/${video.id}`} className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full h-7 sm:h-8 text-xs sm:text-sm">
-                          詳細
-                        </Button>
-                      </Link>
-                      <a
-                        href={video.videoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-8 sm:w-8 p-0">
-                          <ExternalLink className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        </Button>
-                      </a>
+                        {/* Stats */}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-600 sm:text-xs">
+                          <span className="flex items-center gap-1">
+                            <Eye className="h-3 w-3 text-emerald-500" />
+                            {formatNumber(video.viewCount)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Heart className="h-3 w-3 text-rose-400" />
+                            {formatNumber(video.likeCount)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MessageCircle className="h-3 w-3 text-teal-500" />
+                            {formatNumber(video.commentCount)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Share2 className="h-3 w-3 text-blue-400" />
+                            {formatNumber(video.shareCount)}
+                          </span>
+                          <span className="font-medium text-emerald-600">
+                            ER: {formatPercent(video.engagementRate)}
+                          </span>
+                          {video.videoDurationSeconds && (
+                            <span className="text-gray-400">
+                              {formatDuration(video.videoDurationSeconds)}
+                            </span>
+                          )}
+                          {video.videoUrl && (
+                            <a
+                              href={video.videoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-0.5 text-emerald-600 hover:text-emerald-700 transition-colors"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              <span className="hidden sm:inline">元動画</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -489,7 +555,7 @@ export default function RankingPage() {
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-center gap-2 sm:gap-4">
+            <div className="flex items-center justify-center gap-3 py-4">
               <Button
                 variant="outline"
                 size="sm"

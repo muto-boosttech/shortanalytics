@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/select";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import dynamic from "next/dynamic";
-import { useRef } from "react";
 
 // Rechartsを動的インポートで遅延読み込み
 const LazyBarChart = dynamic(
@@ -26,7 +25,12 @@ const LazyCartesianGrid = dynamic(() => import("recharts").then((mod) => mod.Car
 const LazyTooltip = dynamic(() => import("recharts").then((mod) => mod.Tooltip), { ssr: false });
 const LazyResponsiveContainer = dynamic(() => import("recharts").then((mod) => mod.ResponsiveContainer), { ssr: false });
 const LazyCell = dynamic(() => import("recharts").then((mod) => mod.Cell), { ssr: false });
-import { Calendar, Eye, Heart, TrendingUp, Video, Youtube, Instagram } from "lucide-react";
+const LazyLineChart = dynamic(() => import("recharts").then((mod) => mod.LineChart), { ssr: false });
+const LazyLine = dynamic(() => import("recharts").then((mod) => mod.Line), { ssr: false });
+const LazyArea = dynamic(() => import("recharts").then((mod) => mod.Area), { ssr: false });
+const LazyAreaChart = dynamic(() => import("recharts").then((mod) => mod.AreaChart), { ssr: false });
+const LazyLegend = dynamic(() => import("recharts").then((mod) => mod.Legend), { ssr: false });
+import { Calendar, Eye, Heart, TrendingUp, Video, Youtube, Instagram, MessageCircle, Share2 } from "lucide-react";
 import { AIAssistCard } from "@/components/ai-assist-card";
 import { ExportButton } from "@/components/export-button";
 import { RefreshButton } from "@/components/refresh-button";
@@ -68,6 +72,12 @@ interface DashboardData {
       totalViews: number;
       avgEngagement: number;
     }>;
+    dailyTrend: Array<{
+      date: string;
+      videos: number;
+      views: number;
+      engagement: number;
+    }>;
   };
   dataRange: {
     postedFrom: string | null;
@@ -80,10 +90,36 @@ interface DashboardData {
 // 動画尺カテゴリの表示順序
 const DURATION_ORDER = ["〜15秒", "〜30秒", "〜60秒", "60秒以上"];
 
-// カラーパレット
-const CONTENT_TYPE_COLORS = ["#6366F1", "#8B5CF6", "#A855F7", "#C084FC", "#D8B4FE"];
-const HOOK_TYPE_COLORS = ["#EC4899", "#F472B6", "#F9A8D4", "#FBCFE8", "#F43F5E", "#FB7185"];
-const DURATION_COLORS = ["#10B981", "#34D399", "#6EE7B7", "#A7F3D0"];
+// TeamHub風カラーパレット（エメラルドグリーン系グラデーション）
+const CONTENT_TYPE_COLORS = ["#059669", "#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#D1FAE5"];
+const HOOK_TYPE_COLORS = ["#0D9488", "#14B8A6", "#2DD4BF", "#5EEAD4", "#99F6E4", "#CCFBF1"];
+const DURATION_COLORS = ["#047857", "#059669", "#10B981", "#34D399"];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CustomTooltip = ({ active, payload, label, formatter }: any) => {
+  if (!active || !payload || payload.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg">
+      {label && <p className="mb-1 text-xs font-medium text-gray-600">{label}</p>}
+      {payload.map((entry: any, index: number) => {
+        const [formattedValue, name] = formatter
+          ? formatter(entry.value, entry.dataKey, entry.payload)
+          : [String(entry.value), entry.dataKey];
+        return (
+          <div key={index} className="flex items-center gap-2 text-sm">
+            <div
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-gray-500">{name}:</span>
+            <span className="font-semibold text-gray-900">{formattedValue}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 export default function DashboardPage() {
   const [industries, setIndustries] = useState<Industry[]>([]);
@@ -129,25 +165,29 @@ export default function DashboardPage() {
           title: "総動画数",
           value: formatNumber(dashboardData.kpi.totalVideos),
           icon: Video,
-          color: "text-primary",
+          color: "text-emerald-600",
+          bgColor: "bg-emerald-50",
         },
         {
           title: "総再生数",
           value: formatNumber(dashboardData.kpi.totalViews),
           icon: Eye,
-          color: "text-blue-500",
+          color: "text-teal-600",
+          bgColor: "bg-teal-50",
         },
         {
           title: "平均ER",
           value: formatPercent(dashboardData.kpi.avgEngagementRate),
           icon: TrendingUp,
-          color: "text-green-500",
+          color: "text-emerald-600",
+          bgColor: "bg-emerald-50",
         },
         {
           title: "総いいね数",
           value: formatNumber(dashboardData.kpi.totalLikes),
           icon: Heart,
-          color: "text-accent",
+          color: "text-teal-600",
+          bgColor: "bg-teal-50",
         },
       ]
     : [];
@@ -257,11 +297,11 @@ export default function DashboardPage() {
           <>
             {/* Data Range Info */}
             {dashboardData?.dataRange && (
-              <Card className="bg-gray-50 border-gray-200">
+              <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50">
                 <CardContent className="py-3 sm:py-4">
                   <div className="flex flex-col gap-2 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-8 sm:gap-y-2 sm:text-sm">
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-3.5 w-3.5 text-primary sm:h-4 sm:w-4" />
+                      <Calendar className="h-3.5 w-3.5 text-emerald-600 sm:h-4 sm:w-4" />
                       <span className="font-medium text-gray-700">投稿期間:</span>
                       <span className="text-gray-600 hidden sm:inline">
                         {formatDate(dashboardData.dataRange.postedFrom)} 〜 {formatDate(dashboardData.dataRange.postedTo)}
@@ -271,7 +311,7 @@ export default function DashboardPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-3.5 w-3.5 text-accent sm:h-4 sm:w-4" />
+                      <Calendar className="h-3.5 w-3.5 text-teal-600 sm:h-4 sm:w-4" />
                       <span className="font-medium text-gray-700">収集期間:</span>
                       <span className="text-gray-600 hidden sm:inline">
                         {formatDate(dashboardData.dataRange.collectedFrom)} 〜 {formatDate(dashboardData.dataRange.collectedTo)}
@@ -288,15 +328,17 @@ export default function DashboardPage() {
             {/* KPI Cards */}
             <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               {kpiCards.map((card) => (
-                <Card key={card.title}>
+                <Card key={card.title} className="border-gray-200 hover:shadow-md transition-shadow">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1 sm:p-6 sm:pb-2">
-                    <CardTitle className="text-xs font-medium text-gray-600 sm:text-sm">
+                    <CardTitle className="text-xs font-medium text-gray-500 sm:text-sm">
                       {card.title}
                     </CardTitle>
-                    <card.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${card.color}`} />
+                    <div className={`rounded-lg p-1.5 sm:p-2 ${card.bgColor}`}>
+                      <card.icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${card.color}`} />
+                    </div>
                   </CardHeader>
                   <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-                    <div className="text-lg font-bold sm:text-2xl">{card.value}</div>
+                    <div className="text-lg font-bold text-gray-900 sm:text-2xl">{card.value}</div>
                   </CardContent>
                 </Card>
               ))}
@@ -305,9 +347,12 @@ export default function DashboardPage() {
             {/* Charts */}
             <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
               {/* Content Type ER Chart */}
-              <Card>
+              <Card className="border-gray-200 hover:shadow-md transition-shadow">
                 <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-2">
-                  <CardTitle className="text-sm sm:text-base">コンテンツ類型別ER</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold text-gray-800 sm:text-base">コンテンツ類型別ER</CardTitle>
+                    <span className="text-[10px] text-gray-400 sm:text-xs">エンゲージメント率</span>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                   <div className="h-[220px] sm:h-[300px]">
@@ -315,15 +360,16 @@ export default function DashboardPage() {
                       <LazyBarChart
                         data={dashboardData?.charts.contentTypeStats || []}
                         layout="vertical"
-                        margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                        margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
                       >
-                        <LazyCartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                        <LazyCartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
                         <LazyXAxis
                           type="number"
-                          tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+                          tickFormatter={(value: number) => `${(value * 100).toFixed(0)}%`}
                           fontSize={10}
                           tickLine={false}
                           axisLine={false}
+                          tick={{ fill: "#9CA3AF" }}
                         />
                         <LazyYAxis 
                           dataKey="type" 
@@ -332,15 +378,22 @@ export default function DashboardPage() {
                           fontSize={11}
                           tickLine={false}
                           axisLine={false}
+                          tick={{ fill: "#4B5563" }}
                         />
                         <LazyTooltip
-                          formatter={(value) => [
-                            `${(Number(value || 0) * 100).toFixed(2)}%`,
-                            "ER",
-                          ]}
-                          contentStyle={{ fontSize: 11 }}
+                          content={(props: any) => (
+                            <CustomTooltip
+                              active={props.active}
+                              payload={props.payload}
+                              label={props.label}
+                              formatter={(value: number) => [
+                                `${(value * 100).toFixed(2)}%`,
+                                "ER",
+                              ]}
+                            />
+                          )}
                         />
-                        <LazyBar dataKey="avgEngagement" radius={[0, 4, 4, 0]}>
+                        <LazyBar dataKey="avgEngagement" radius={[0, 6, 6, 0]} barSize={20}>
                           {(dashboardData?.charts.contentTypeStats || []).map((_, index) => (
                             <LazyCell key={`cell-${index}`} fill={CONTENT_TYPE_COLORS[index % CONTENT_TYPE_COLORS.length]} />
                           ))}
@@ -352,9 +405,12 @@ export default function DashboardPage() {
               </Card>
 
               {/* Hook Type Views Chart */}
-              <Card>
+              <Card className="border-gray-200 hover:shadow-md transition-shadow">
                 <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-2">
-                  <CardTitle className="text-sm sm:text-base">フック別再生数</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold text-gray-800 sm:text-base">フック別再生数</CardTitle>
+                    <span className="text-[10px] text-gray-400 sm:text-xs">総再生数</span>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                   <div className="h-[220px] sm:h-[300px]">
@@ -362,15 +418,16 @@ export default function DashboardPage() {
                       <LazyBarChart
                         data={dashboardData?.charts.hookTypeStats || []}
                         layout="vertical"
-                        margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                        margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
                       >
-                        <LazyCartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                        <LazyCartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
                         <LazyXAxis
                           type="number"
-                          tickFormatter={(value) => formatNumber(value)}
+                          tickFormatter={(value: number) => formatNumber(value)}
                           fontSize={10}
                           tickLine={false}
                           axisLine={false}
+                          tick={{ fill: "#9CA3AF" }}
                         />
                         <LazyYAxis 
                           dataKey="type" 
@@ -379,12 +436,19 @@ export default function DashboardPage() {
                           fontSize={11}
                           tickLine={false}
                           axisLine={false}
+                          tick={{ fill: "#4B5563" }}
                         />
                         <LazyTooltip
-                          formatter={(value) => [formatNumber(Number(value || 0)), "再生数"]}
-                          contentStyle={{ fontSize: 11 }}
+                          content={(props: any) => (
+                            <CustomTooltip
+                              active={props.active}
+                              payload={props.payload}
+                              label={props.label}
+                              formatter={(value: number) => [formatNumber(value), "再生数"]}
+                            />
+                          )}
                         />
-                        <LazyBar dataKey="totalViews" radius={[0, 4, 4, 0]}>
+                        <LazyBar dataKey="totalViews" radius={[0, 6, 6, 0]} barSize={20}>
                           {(dashboardData?.charts.hookTypeStats || []).map((_, index) => (
                             <LazyCell key={`cell-${index}`} fill={HOOK_TYPE_COLORS[index % HOOK_TYPE_COLORS.length]} />
                           ))}
@@ -396,7 +460,7 @@ export default function DashboardPage() {
               </Card>
 
               {/* AI Assist Card */}
-              <Card className="lg:col-span-2 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200">
+              <Card className="lg:col-span-2 bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200">
                 <AIAssistCard
                   type="dashboard"
                   industryId={selectedIndustry}
@@ -413,9 +477,12 @@ export default function DashboardPage() {
               </Card>
 
               {/* Duration Category ER Chart - Full Width */}
-              <Card className="lg:col-span-2">
+              <Card className="lg:col-span-2 border-gray-200 hover:shadow-md transition-shadow">
                 <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-2">
-                  <CardTitle className="text-sm sm:text-base">動画尺別ER</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold text-gray-800 sm:text-base">動画尺別ER</CardTitle>
+                    <span className="text-[10px] text-gray-400 sm:text-xs">エンゲージメント率</span>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                   <div className="h-[180px] sm:h-[220px]">
@@ -423,15 +490,16 @@ export default function DashboardPage() {
                       <LazyBarChart
                         data={sortedDurationStats}
                         layout="vertical"
-                        margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                        margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
                       >
-                        <LazyCartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                        <LazyCartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
                         <LazyXAxis
                           type="number"
-                          tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+                          tickFormatter={(value: number) => `${(value * 100).toFixed(0)}%`}
                           fontSize={10}
                           tickLine={false}
                           axisLine={false}
+                          tick={{ fill: "#9CA3AF" }}
                         />
                         <LazyYAxis 
                           dataKey="category" 
@@ -440,18 +508,25 @@ export default function DashboardPage() {
                           fontSize={10}
                           tickLine={false}
                           axisLine={false}
+                          tick={{ fill: "#4B5563" }}
                         />
                         <LazyTooltip
-                          formatter={(value, _name, props) => {
-                            const count = props?.payload?.count || 0;
-                            return [
-                              `${(Number(value || 0) * 100).toFixed(2)}% (${count}件)`,
-                              "ER",
-                            ];
-                          }}
-                          contentStyle={{ fontSize: 11 }}
+                          content={(props: any) => (
+                            <CustomTooltip
+                              active={props.active}
+                              payload={props.payload}
+                              label={props.label}
+                              formatter={(value: number, _name: string, entryPayload: any) => {
+                                const count = entryPayload?.count || 0;
+                                return [
+                                  `${(value * 100).toFixed(2)}% (${count}件)`,
+                                  "ER",
+                                ];
+                              }}
+                            />
+                          )}
                         />
-                        <LazyBar dataKey="avgEngagement" radius={[0, 4, 4, 0]}>
+                        <LazyBar dataKey="avgEngagement" radius={[0, 6, 6, 0]} barSize={24}>
                           {sortedDurationStats.map((_, index) => (
                             <LazyCell key={`cell-${index}`} fill={DURATION_COLORS[index % DURATION_COLORS.length]} />
                           ))}
@@ -461,6 +536,115 @@ export default function DashboardPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Daily Trend Chart - Full Width */}
+              {dashboardData?.charts.dailyTrend && dashboardData.charts.dailyTrend.length > 0 && (
+                <Card className="lg:col-span-2 border-gray-200 hover:shadow-md transition-shadow">
+                  <CardHeader className="p-3 pb-2 sm:p-6 sm:pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold text-gray-800 sm:text-base">日別トレンド</CardTitle>
+                      <div className="flex items-center gap-4 text-[10px] sm:text-xs text-gray-400">
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                          <span>投稿数</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-2 w-2 rounded-full bg-teal-500" />
+                          <span>再生数</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                    <div className="h-[200px] sm:h-[260px]">
+                      <LazyResponsiveContainer width="100%" height="100%">
+                        <LazyAreaChart
+                          data={dashboardData.charts.dailyTrend}
+                          margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                        >
+                          <defs>
+                            <linearGradient id="colorVideos" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#0D9488" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#0D9488" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <LazyCartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                          <LazyXAxis
+                            dataKey="date"
+                            fontSize={10}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fill: "#9CA3AF" }}
+                            tickFormatter={(value: string) => {
+                              const d = new Date(value);
+                              return `${d.getMonth() + 1}/${d.getDate()}`;
+                            }}
+                          />
+                          <LazyYAxis
+                            yAxisId="left"
+                            fontSize={10}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fill: "#9CA3AF" }}
+                          />
+                          <LazyYAxis
+                            yAxisId="right"
+                            orientation="right"
+                            fontSize={10}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fill: "#9CA3AF" }}
+                            tickFormatter={(value: number) => formatNumber(value)}
+                          />
+                          <LazyTooltip
+                            content={(props: any) => {
+                              if (!props.active || !props.payload) return null;
+                              const d = props.label ? new Date(props.label) : null;
+                              const dateLabel = d ? `${d.getMonth() + 1}月${d.getDate()}日` : "";
+                              return (
+                                <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg">
+                                  <p className="mb-1 text-xs font-medium text-gray-600">{dateLabel}</p>
+                                  {props.payload.map((entry: any, index: number) => (
+                                    <div key={index} className="flex items-center gap-2 text-sm">
+                                      <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                                      <span className="text-gray-500">
+                                        {entry.dataKey === "videos" ? "投稿数" : "再生数"}:
+                                      </span>
+                                      <span className="font-semibold text-gray-900">
+                                        {entry.dataKey === "videos" ? entry.value : formatNumber(entry.value)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            }}
+                          />
+                          <LazyArea
+                            yAxisId="left"
+                            type="monotone"
+                            dataKey="videos"
+                            stroke="#059669"
+                            strokeWidth={2}
+                            fill="url(#colorVideos)"
+                          />
+                          <LazyArea
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="views"
+                            stroke="#0D9488"
+                            strokeWidth={2}
+                            fill="url(#colorViews)"
+                          />
+                        </LazyAreaChart>
+                      </LazyResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </>
         )}

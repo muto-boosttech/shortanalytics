@@ -26,15 +26,27 @@ export async function GET(request: NextRequest) {
     const hookType = searchParams.get("hook_type");
     const durationCategory = searchParams.get("duration_category");
     const search = searchParams.get("search");
-    const platform = searchParams.get("platform") || "tiktok"; // 'tiktok' | 'youtube'
+    const platform = searchParams.get("platform") || "tiktok"; // 'tiktok' | 'youtube' | 'instagram'
 
     // ソート
     const sortBy = searchParams.get("sort_by") || "collectedAt";
     const sortOrder = (searchParams.get("sort_order") || "desc") as "asc" | "desc";
 
+    // 投稿期間フィルタ: 前日から1か月前まで（ダッシュボードと同じロジック）
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() - 1); // 前日
+    endDate.setHours(23, 59, 59, 999);
+    const startDate = new Date(endDate);
+    startDate.setMonth(startDate.getMonth() - 1); // 1か月前
+    startDate.setHours(0, 0, 0, 0);
+
     // Where条件の構築
     const where: Prisma.VideoWhereInput = {
       platform: platform,
+      postedAt: {
+        gte: startDate,
+        lte: endDate,
+      },
     };
 
     if (search) {
@@ -116,6 +128,40 @@ export async function GET(request: NextRequest) {
       prisma.video.count({ where }),
     ]);
 
+    // データ収集期間を計算
+    const allVideosForRange = await prisma.video.findMany({
+      where: {
+        platform: platform,
+        postedAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+        ...(industryId ? {
+          videoTags: {
+            some: { industryId: parseInt(industryId) },
+          },
+        } : {}),
+      },
+      select: {
+        postedAt: true,
+        collectedAt: true,
+      },
+    });
+
+    const postedDates = allVideosForRange
+      .filter((v) => v.postedAt)
+      .map((v) => v.postedAt!.getTime());
+    const collectedDates = allVideosForRange
+      .filter((v) => v.collectedAt)
+      .map((v) => v.collectedAt!.getTime());
+
+    const dataRange = {
+      postedFrom: postedDates.length > 0 ? new Date(Math.min(...postedDates)).toISOString().split("T")[0] : null,
+      postedTo: postedDates.length > 0 ? new Date(Math.max(...postedDates)).toISOString().split("T")[0] : null,
+      collectedFrom: collectedDates.length > 0 ? new Date(Math.min(...collectedDates)).toISOString().split("T")[0] : null,
+      collectedTo: collectedDates.length > 0 ? new Date(Math.max(...collectedDates)).toISOString().split("T")[0] : null,
+    };
+
     // hashtagsはPostgreSQL配列なのでそのまま返す
     return NextResponse.json({
       success: true,
@@ -126,6 +172,7 @@ export async function GET(request: NextRequest) {
         total,
         totalPages: Math.ceil(total / limit),
       },
+      dataRange,
     });
   } catch (error) {
     console.error("Error fetching videos:", error);
