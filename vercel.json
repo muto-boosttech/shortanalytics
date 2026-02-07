@@ -1,4 +1,10 @@
 {
+  "regions": ["hnd1"],
+  "functions": {
+    "src/app/api/stripe/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/daily-update",

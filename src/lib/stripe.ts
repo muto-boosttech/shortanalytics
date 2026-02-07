@@ -9,8 +9,9 @@ export function getStripe(): Stripe {
       throw new Error("STRIPE_SECRET_KEY is not set");
     }
     _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2025-01-27.acacia" as Stripe.LatestApiVersion,
       typescript: true,
+      maxNetworkRetries: 3,
+      timeout: 30000,
     });
   }
   return _stripe;
