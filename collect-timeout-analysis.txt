@@ -1,0 +1,27 @@
+## データ収集タイムアウト問題の分析
+
+### 根本原因
+3つのcollect API（/api/collect, /api/collect-youtube, /api/collect-instagram）全てが
+Apifyの `run-sync-get-dataset-items` を使用している。
+
+これは同期APIで、Apifyのスクレイピングジョブが完了するまでレスポンスを返さない。
+Vercel Hobbyプランのサーバーレス関数タイムアウトは最大60秒。
+新しい業種「ペット」のスクレイピングが60秒以内に完了しないとタイムアウト。
+
+さらに、MAX_RETRIES = 3, RETRY_DELAY_MS = 5000 の設定があり、
+失敗時に最大3回リトライ（各5秒遅延）するため、さらに時間がかかる。
+
+### 修正方針
+Apify APIを非同期実行に変更:
+1. Step 1: POST /api/collect → Apifyジョブを開始（run API）→ runIdを返す
+2. Step 2: GET /api/collect/status?runId=xxx → ジョブの状態をポーリング
+3. Step 3: ジョブ完了後にデータセットを取得してDBに保存
+
+フロントエンドもポーリング方式に変更。
+
+### 影響範囲
+- /api/collect (TikTok)
+- /api/collect-youtube (YouTube)
+- /api/collect-instagram (Instagram)
+- /app/collect/page.tsx (フロントエンド)
+- /api/refresh/route.ts (一括収集 - こちらも同じ問題あり)

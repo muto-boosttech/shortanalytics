@@ -1,0 +1,21 @@
+API調査結果:
+
+1. /api/dashboard?platform=tiktok (業種指定なし):
+   - totalVideos: 1439, totalViews: 601M
+   - contentTypeStats: ランキング(68), 商品紹介(48), Vlog(33), レビュー(21), チュートリアル(19), ビフォーアフター(7), ハウツー(2), Q&A(1)
+   - hookTypeStats: 質問形式(40), カウントダウン(11), ビフォーアフター(4), 衝撃的事実(3), ストーリー導入(3), 比較(2)
+   - データあり！
+
+2. /api/dashboard?industry_id=1&platform=tiktok (フィットネス):
+   - totalVideos: 0
+   - 全て空
+
+3. /api/dashboard?industry_id=1&platform=instagram (フィットネス):
+   - totalVideos: 0
+   - 全て空
+
+問題: industry_id=1 (フィットネス) でフィルタすると動画が0件になる
+→ videoTagsテーブルにindustryId=1のレコードがないか、
+   videoTagsのindustryIdとindustriesテーブルのIDが一致していない
+
+ランキングページでは動画が表示されている → ランキングはvideoTags経由のフィルタを使っていない可能性

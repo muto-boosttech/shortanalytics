@@ -1,0 +1,29 @@
+Instagram/YouTube ダッシュボードAPI調査結果
+=============================================
+
+Instagram (industry_id=11):
+- totalVideos: 2
+- contentTypeStats: [] (空配列)
+- hookTypeStats: [] (空配列)
+- durationCategoryStats: 2件あり（60秒以上、〜60秒）
+- 問題: contentTypeとhookTypeが全てnull → auto-tagされていない
+
+YouTube (industry_id=11):
+- totalVideos: 198
+- contentTypeStats: 7件あり（ランキング34, Vlog29, チュートリアル15, ハウツー5, 商品紹介2, レビュー2, ビフォーアフター1）
+- hookTypeStats: 6件あり（質問形式11, 比較9, 衝撃的事実6, カウントダウン5, 問題提起3, ビフォーアフター1）
+- durationCategoryStats: 3件あり
+- avgEngagement: 全て0 → likes/comments/sharesが0
+
+結論:
+- YouTube: contentTypeStats/hookTypeStatsはデータがある。avgEngagementが全て0なのが問題（likes=0, comments=0, shares=0）
+- Instagram: 動画が2件しかない。contentType/hookTypeがnull（auto-tagされていない）
+
+「カテゴリごとに全くデータが表示されていない」の意味:
+- ダッシュボードUIでInstagramやYouTubeを選択した時にグラフが空になっている可能性
+- YouTubeはcontentTypeStatsにデータがあるが、avgEngagement=0なのでERグラフが0になる
+- Instagramはそもそもデータが2件しかなく、contentTypeStats/hookTypeStatsが空
+
+確認すべき点:
+1. ダッシュボードUIでYouTube/Instagramを選択した時の表示
+2. 業種IDなしで全業種のデータを見た場合

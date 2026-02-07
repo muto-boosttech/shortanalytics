@@ -1,0 +1,34 @@
+重要な発見:
+
+1. 上位動画のvideoTagsが空配列 []
+   - id:8277 (82.4M views) → videoTags: []
+   - id:7505 (17M views) → videoTags: []
+   - id:1625 (16.6M views) → videoTags: [{industryId:17, contentType:null, hookType:null}]
+
+2. videoTags.industryId=17 (飲食・グルメ) のみ紐づいている
+   - フィットネス(id=1)には紐づいていない
+
+3. ダッシュボードでindustry_id=1を指定すると0件になる理由:
+   - videoTags.industryIdが1(フィットネス)のレコードがほとんどない
+   - ランキングページでは「全業種」(industry指定なし)で表示しているため動画が見える
+
+4. 参考画像(2枚目)では業種「フィットネス」で255件のデータがある
+   → 別のデプロイ(shortbooster-api.vercel.app)では正しくタグ付けされている
+
+5. 問題の根本原因:
+   - auto-tagが正しく動作していない、または
+   - 新しく収集した動画にauto-tagが実行されていない
+   - refresh APIでauto-tagが正しく実行されていない可能性
+
+6. ダッシュボードのグラフ表示問題:
+   - industry_id指定なし(全業種)の場合、contentTypeStatsにデータがある
+   - しかしダッシュボードUIは必ず業種を選択する仕様
+   - 業種を選択するとvideoTagsフィルタが適用され、タグ付けされていない動画が除外される
+   → auto-tagの問題を修正する必要がある
+
+   もう一つの問題:
+   - industry_id指定なしでもcontentTypeStatsにデータがあるのは、
+     videoTags経由でフィルタしているから
+   - industryIdなしの場合はvideoTags.someフィルタが適用されない
+   - つまりvideoTagsがない動画もカウントされるが、
+     contentTypeStats集計ではvideoTags.contentTypeがnullの動画は除外される

@@ -183,16 +183,16 @@ export default function CollectPage() {
     setProgress(0);
     setResult(null);
 
-    // Simulate progress
+    // プログレスバーをゆっくり進める
     const progressInterval = setInterval(() => {
-      setProgress((prev) => Math.min(prev + 10, 90));
-    }, 1000);
+      setProgress((prev) => Math.min(prev + 2, 85));
+    }, 3000);
 
     try {
-      // プラットフォームに応じてAPIエンドポイントを選択
+      // Step 1: Apifyジョブを非同期で開始
       const endpoint = platform === "instagram" ? "/api/collect-instagram" : platform === "youtube" ? "/api/collect-youtube" : "/api/collect";
       
-      const response = await fetch(endpoint, {
+      const startResponse = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -202,25 +202,87 @@ export default function CollectPage() {
         }),
       });
 
-      const data = await response.json();
+      const startData = await startResponse.json();
+
+      if (!startData.success) {
+        clearInterval(progressInterval);
+        setResult({ success: false, message: startData.error || "収集の開始に失敗しました" });
+        setCollecting(false);
+        return;
+      }
+
+      const { runId, collectionLogId } = startData.data;
+      setProgress(10);
+
+      // Step 2: ポーリングでApifyジョブの完了を待つ
+      const maxPollingTime = 10 * 60 * 1000; // 最大10分
+      const pollingInterval = 5000; // 5秒ごと
+      const startTime = Date.now();
+
+      let jobFinished = false;
+      let jobSuccess = false;
+
+      while (Date.now() - startTime < maxPollingTime) {
+        await new Promise((resolve) => setTimeout(resolve, pollingInterval));
+
+        try {
+          const statusResponse = await fetch(`/api/collect/status?runId=${runId}`);
+          const statusData = await statusResponse.json();
+
+          if (statusData.success && statusData.data.isFinished) {
+            jobFinished = true;
+            jobSuccess = statusData.data.isSuccess;
+            break;
+          }
+        } catch {
+          // ポーリングエラーは無視して続行
+          console.warn("ステータス確認中にエラーが発生しました。リトライします...");
+        }
+      }
+
       clearInterval(progressInterval);
+
+      if (!jobFinished) {
+        setProgress(90);
+        setResult({ success: false, message: "データ収集がタイムアウトしました。しばらく待ってからログを確認してください。" });
+        setCollecting(false);
+        fetchLogs();
+        return;
+      }
+
+      if (!jobSuccess) {
+        setProgress(100);
+        setResult({ success: false, message: "Apifyのスクレイピングジョブが失敗しました。" });
+        setCollecting(false);
+        fetchLogs();
+        return;
+      }
+
+      setProgress(90);
+
+      // Step 3: ジョブ完了後にデータセットを取得してDBに保存
+      const completeResponse = await fetch("/api/collect/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ runId, collectionLogId, platform }),
+      });
+
+      const completeData = await completeResponse.json();
       setProgress(100);
 
-      if (data.success) {
+      if (completeData.success) {
+        const platLabel = platform === "instagram" ? "Instagram Reels" : platform === "youtube" ? "YouTube Shorts" : "TikTok";
         setResult({
           success: true,
-          message: `${platform === "instagram" ? "Instagram Reels" : platform === "youtube" ? "YouTube Shorts" : "TikTok"}の収集が完了しました`,
+          message: `${platLabel}の収集が完了しました`,
           data: {
-            videosCollected: data.data.videosCollected,
-            videosNew: data.data.videosNew,
-            videosUpdated: data.data.videosUpdated,
+            videosCollected: completeData.data.videosCollected,
+            videosNew: completeData.data.videosNew,
+            videosUpdated: completeData.data.videosUpdated,
           },
         });
       } else {
-        setResult({
-          success: false,
-          message: data.error || "収集に失敗しました",
-        });
+        setResult({ success: false, message: completeData.error || "データの保存に失敗しました" });
       }
 
       fetchLogs();

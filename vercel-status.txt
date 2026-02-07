@@ -1,0 +1,12 @@
+Vercelダッシュボード確認結果:
+
+重要な発見:
+- tategatashort-analytics.com は「shortbooster-api」プロジェクトに紐づいている
+- 「shortbooster-api」は「Connect Git Repository」と表示 → Gitリポジトリが接続されていない！
+- 「shortanalytics」プロジェクトは「takayukicengrit/shortanalytics」に紐づいている（shortanalytics.vercel.app）
+
+つまり:
+- 本番サイト (tategatashort-analytics.com) = shortbooster-api プロジェクト → Gitリポ未接続
+- shortanalytics プロジェクト = takayukicengrit/shortanalytics → shortanalytics.vercel.app
+
+本番サイトにGitリポジトリを接続するか、手動デプロイが必要

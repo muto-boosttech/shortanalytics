@@ -1,0 +1,25 @@
+重要な発見:
+
+ローカルでのデバッグ結果:
+- Date range: 2026-01-06T05:00:00.000Z to 2026-02-07T04:59:59.999Z
+- Full dashboard filter count: 246
+- Videos API filter count: 246
+
+ローカルでは246件取得できている！
+しかし、Vercelのdashboard APIでは0件。
+
+原因: Vercelのサーバーのタイムゾーンがローカルと異なる可能性
+- ローカル: Date range: 2026-01-06T05:00:00.000Z to 2026-02-07T04:59:59.999Z
+  → 1月6日 14:00 JST ~ 2月7日 13:59 JST
+- Vercel (UTC): endDate = new Date() → 2026-02-07T13:30:00.000Z
+  → setDate(getDate() - 1) → 2026-02-06T13:30:00.000Z
+  → setHours(23, 59, 59, 999) → 2026-02-06T23:59:59.999Z (UTC)
+  → startDate: 2026-01-06T00:00:00.000Z (UTC)
+
+しかし、VercelのAPIレスポンスでは totalVideos: 0 になっている。
+
+もう一つの可能性: Vercelのデプロイされたコードが古い
+→ 最新のコードがデプロイされていない可能性
+
+確認: 最後のVercelデプロイはいつか？
+→ git pushしてデプロイする必要がある

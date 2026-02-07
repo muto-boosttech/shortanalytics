@@ -1,0 +1,50 @@
+根本原因の確認:
+
+業種テーブルのID:
+- id:11 フィットネス (videoTags: 713)
+- id:12 エンタメ (videoTags: 74)
+- id:13 ファッション (videoTags: 89)
+- id:14 不動産 (videoTags: 77)
+- id:15 教育 (videoTags: 65)
+- id:16 EC・D2C (videoTags: 99)
+- id:17 飲食・グルメ (videoTags: 60)
+- id:18 美容・コスメ (videoTags: 140)
+- id:19 旅行 (videoTags: 2)
+- id:20 医療 (videoTags: 0)
+- id:21 ペット (videoTags: 0)
+
+ダッシュボードUIの問題:
+- UIでは最初の業種(id=11)が自動選択される
+- /api/dashboard?industry_id=11&platform=tiktok → totalVideos: 0
+
+しかし、/api/dashboard?platform=tiktok (業種指定なし) → totalVideos: 1439
+
+これは矛盾！ videoTagsに713件のフィットネスタグがあるのに、
+dashboard APIでindustry_id=11を指定すると0件になる。
+
+原因: dashboard APIのフィルタ条件の問題
+- videoWhere.videoTags = { some: { industryId: parseInt(industryId) } }
+- これはvideoTagsにindustryId=11のレコードがある動画のみをフィルタ
+- さらに postedAt: { gte: startDate, lte: endDate } も適用
+
+→ videoTagsにindustryId=11のレコードがあっても、
+  postedAtが期間外の動画は除外される
+
+確認: videoTags 713件のうち、postedAtが期間内のものがあるか？
+→ 最近のrefreshでauto-tagが全削除→再作成されたが、
+  新しく収集された動画のpostedAtが期間外の可能性
+
+もう一つの可能性:
+- runAutoTag()は最初にdeleteMany()で全タグを削除
+- その後、videoTags: { none: {} } で未タグ動画を取得
+- しかし、この時点で全動画がタグなしなので全動画にタグ付け
+- 問題は、detectIndustryFromHashtags()がハッシュタグから業種を推定するが、
+  海外の動画のハッシュタグには日本語キーワードが含まれない
+  → デフォルトのindustryId=11(フィットネス)が割り当てられる
+
+テスト: /api/dashboard?industry_id=11&platform=tiktok で0件
+→ 実際にはvideoTagsに713件あるが、postedAtフィルタで除外されている可能性
+
+確認すべき: 最近のrefresh実行時にauto-tagが正しく実行されたか
+→ runAutoTag()でdeleteMany()後に再作成されるが、
+  Vercelの実行時間制限(300秒)で途中で打ち切られた可能性

@@ -1,0 +1,20 @@
+## タギング&ベンチマーク問題の分析
+
+### 問題1: 自動タギングが「タギング中...」のまま完了しない
+- auto-tag APIは1131件の未タグ動画を一括処理する
+- 各動画に対して1件ずつPrismaクエリ（existingTag確認 + videoTag作成）を実行
+- 1131件 × 2クエリ = 約2262回のDBアクセス
+- Vercelのサーバーレス関数のタイムアウト（通常10秒〜60秒）に引っかかっている可能性が高い
+- フロントエンドはfetchのレスポンスを待っているが、サーバー側がタイムアウトで切断される
+
+### 問題2: ベンチマーク再計算が「Failed to recalculate benchmarks」
+- recalculate APIはrequest.json()でbodyを読む
+- フロントエンドはGETパラメータでindustry_idを渡しているが、POSTのbodyでは送っていない
+- 158行目: `fetch(\`/api/benchmarks/recalculate?${params}\`, { method: "POST" })`
+- API側はbodyからindustryIdを読む: `const { industryId, periodDays = 30 } = body;`
+- bodyが空（{}）の場合、request.json()がエラーになる可能性がある
+- 実際にはbodyなしでPOSTしているので、request.json()が失敗してcatchに入る
+
+### 修正方針
+1. auto-tag: バッチ処理に変更（100件ずつ処理）、またはタイムアウト対策
+2. benchmark recalculate: bodyなしのPOSTに対応 + クエリパラメータからもindustryIdを読む
