@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const priceId = PLAN_PRICE_MAP[plan];
     if (!priceId) {
       return NextResponse.json(
-        { error: "無効なプランです" },
+        { error: `無効なプランです: ${plan}, available: ${JSON.stringify(PLAN_PRICE_MAP)}` },
         { status: 400 }
       );
     }
@@ -100,10 +100,11 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ url: session.url, sessionId: session.id });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Stripe Checkout error:", error);
+    const errorMessage = error instanceof Error ? error.message : "不明なエラー";
     return NextResponse.json(
-      { error: "決済セッションの作成に失敗しました" },
+      { error: `決済セッションの作成に失敗しました: ${errorMessage}` },
       { status: 500 }
     );
   }
