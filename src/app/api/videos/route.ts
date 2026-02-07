@@ -38,12 +38,11 @@ export async function GET(request: NextRequest) {
       | "asc"
       | "desc";
 
-    // 投稿期間フィルタ: 前日から1か月前まで
+    // 投稿期間フィルタ: 現在から1年前まで（データ量に応じて広めに設定）
     const endDate = new Date();
-    endDate.setDate(endDate.getDate() - 1);
     endDate.setHours(23, 59, 59, 999);
     const startDate = new Date(endDate);
-    startDate.setMonth(startDate.getMonth() - 1);
+    startDate.setFullYear(startDate.getFullYear() - 1);
     startDate.setHours(0, 0, 0, 0);
 
     // Where条件の構築

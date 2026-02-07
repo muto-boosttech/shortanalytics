@@ -9,12 +9,11 @@ export async function GET(request: NextRequest) {
     const industryId = searchParams.get("industry_id");
     const platform = searchParams.get("platform") || "tiktok";
 
-    // 投稿期間: 前日から1か月前まで
+    // 投稿期間: 現在から1年前まで（データ量に応じて広めに設定）
     const endDate = new Date();
-    endDate.setDate(endDate.getDate() - 1);
     endDate.setHours(23, 59, 59, 999);
     const startDate = new Date(endDate);
-    startDate.setMonth(startDate.getMonth() - 1);
+    startDate.setFullYear(startDate.getFullYear() - 1);
     startDate.setHours(0, 0, 0, 0);
 
     // フィルタ条件
