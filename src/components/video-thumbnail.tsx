@@ -12,24 +12,38 @@ interface VideoThumbnailProps {
 }
 
 /**
- * TikTok動画のサムネイルを表示するコンポーネント
+ * 動画のサムネイルを表示するコンポーネント（TikTok/YouTube/Instagram対応）
  * 
  * 優先順位:
  * 1. DBに保存されたthumbnailUrl
- * 2. サーバーサイドAPIを通じてTikTok oEmbedから取得
+ * 2. 画像読み込み失敗時はサーバーサイドAPIでrefresh=trueでoEmbed再取得
  * 3. グラデーションプレースホルダー
  */
 export function VideoThumbnail({
   videoId,
   thumbnailUrl,
-  description = "TikTok動画",
+  description = "動画",
   className = "",
   showPlayIcon = true,
 }: VideoThumbnailProps) {
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const prevVideoIdRef = useRef<string | null>(null);
+
+  // プラットフォームを判定
+  const platform = videoId.startsWith("yt_") ? "youtube" : videoId.startsWith("ig_") ? "instagram" : "tiktok";
+
+  // プラットフォーム別のグラデーションカラー
+  const gradientClass = platform === "youtube"
+    ? "from-red-500 to-red-700"
+    : platform === "instagram"
+    ? "from-purple-500 via-pink-500 to-orange-400"
+    : "from-indigo-500 to-pink-500";
+
+  // プラットフォーム名
+  const platformLabel = platform === "youtube" ? "YouTube" : platform === "instagram" ? "Instagram" : "TikTok";
 
   useEffect(() => {
     // videoIdが変わった場合は状態をリセット
@@ -37,6 +51,7 @@ export function VideoThumbnail({
       setImgSrc(null);
       setIsLoading(true);
       setHasError(false);
+      setRetryCount(0);
       prevVideoIdRef.current = videoId;
     }
 
@@ -48,44 +63,76 @@ export function VideoThumbnail({
       return;
     }
 
-    // サムネイルURLがない場合はサーバーサイドAPIを通じて取得
-    const fetchThumbnail = async () => {
+    // YouTube動画の場合、サムネイルURLを直接生成
+    if (platform === "youtube") {
+      const ytId = videoId.replace("yt_", "");
+      setImgSrc(`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`);
+      setIsLoading(false);
+      setHasError(false);
+      return;
+    }
+
+    // TikTok/Instagram動画の場合、サーバーサイドAPIを通じて取得
+    if (platform === "tiktok" || platform === "instagram") {
+      const fetchThumbnail = async () => {
+        try {
+          const response = await fetch(`/api/thumbnail?videoId=${videoId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.thumbnailUrl) {
+              setImgSrc(data.thumbnailUrl);
+              setIsLoading(false);
+              setHasError(false);
+              return;
+            }
+          }
+        } catch (error) {
+          console.log("Thumbnail fetch failed:", error);
+        }
+        
+        // 取得失敗時はプレースホルダーを表示
+        setHasError(true);
+        setIsLoading(false);
+      };
+
+      fetchThumbnail();
+      return;
+    }
+
+    // その他の場合はプレースホルダー
+    setHasError(true);
+    setIsLoading(false);
+  }, [videoId, thumbnailUrl, platform]);
+
+  const handleError = async () => {
+    // 1回だけoEmbedでリフレッシュ取得を試みる（署名切れ対策）
+    if (retryCount < 1 && (platform === "tiktok" || platform === "instagram")) {
+      setRetryCount((prev) => prev + 1);
       try {
-        const response = await fetch(`/api/thumbnail?videoId=${videoId}`);
+        const response = await fetch(`/api/thumbnail?videoId=${videoId}&refresh=true`);
         if (response.ok) {
           const data = await response.json();
-          if (data.thumbnailUrl) {
+          if (data.thumbnailUrl && data.thumbnailUrl !== imgSrc) {
             setImgSrc(data.thumbnailUrl);
-            setIsLoading(false);
             setHasError(false);
             return;
           }
         }
       } catch (error) {
-        console.log("Thumbnail fetch failed:", error);
+        console.log("Thumbnail retry failed:", error);
       }
-      
-      // 取得失敗時はプレースホルダーを表示
-      setHasError(true);
-      setIsLoading(false);
-    };
-
-    fetchThumbnail();
-  }, [videoId, thumbnailUrl]);
-
-  const handleError = () => {
+    }
     setHasError(true);
     setImgSrc(null);
   };
 
-  // 画像が正常に読み込まれた場合
   const handleLoad = () => {
     setIsLoading(false);
     setHasError(false);
   };
 
   return (
-    <div className={`relative bg-gradient-to-br from-indigo-500 to-pink-500 ${className}`}>
+    <div className={`relative bg-gradient-to-br ${gradientClass} ${className}`}>
       {isLoading ? (
         // ローディング状態
         <div className="absolute inset-0 flex items-center justify-center">
@@ -99,7 +146,7 @@ export function VideoThumbnail({
               <Play className="h-6 w-6 text-white" fill="white" />
             </div>
           )}
-          <span className="text-lg font-bold">TikTok</span>
+          <span className="text-lg font-bold">{platformLabel}</span>
           <span className="text-sm opacity-70">動画</span>
         </div>
       ) : (

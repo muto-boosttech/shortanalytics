@@ -83,10 +83,10 @@ interface DashboardData {
 // 動画尺カテゴリの表示順序
 const DURATION_ORDER = ["〜15秒", "〜30秒", "〜60秒", "60秒以上"];
 
-// TeamHub風カラーパレット（エメラルドグリーン系グラデーション）
-const CONTENT_TYPE_COLORS = ["#059669", "#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#D1FAE5"];
-const HOOK_TYPE_COLORS = ["#0D9488", "#14B8A6", "#2DD4BF", "#5EEAD4", "#99F6E4", "#CCFBF1"];
-const DURATION_COLORS = ["#047857", "#059669", "#10B981", "#34D399"];
+// カラーパレット（参考デザイン準拠）
+const CONTENT_TYPE_COLORS = ["#6366F1", "#818CF8", "#A78BFA", "#C4B5FD", "#DDD6FE", "#8B5CF6", "#7C3AED"];
+const HOOK_TYPE_COLORS = ["#EC4899", "#F472B6", "#F9A8D4", "#FBCFE8", "#F43F5E", "#EF4444"];
+const DURATION_COLORS = ["#6366F1", "#818CF8", "#A78BFA", "#C4B5FD"];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomTooltip = ({ active, payload, label, formatter }: any) => {

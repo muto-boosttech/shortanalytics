@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
+// 日本語文字を含むかチェック（PostgreSQL正規表現用）
+const JAPANESE_REGEX_PATTERN =
+  "[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]";
+
 // GET /api/videos - 動画一覧を取得（フィルタ+ソート+ページネーション）
 export async function GET(request: NextRequest) {
   try {
@@ -26,18 +30,20 @@ export async function GET(request: NextRequest) {
     const hookType = searchParams.get("hook_type");
     const durationCategory = searchParams.get("duration_category");
     const search = searchParams.get("search");
-    const platform = searchParams.get("platform") || "tiktok"; // 'tiktok' | 'youtube' | 'instagram'
+    const platform = searchParams.get("platform") || "tiktok";
 
     // ソート
     const sortBy = searchParams.get("sort_by") || "collectedAt";
-    const sortOrder = (searchParams.get("sort_order") || "desc") as "asc" | "desc";
+    const sortOrder = (searchParams.get("sort_order") || "desc") as
+      | "asc"
+      | "desc";
 
-    // 投稿期間フィルタ: 前日から1か月前まで（ダッシュボードと同じロジック）
+    // 投稿期間フィルタ: 前日から1か月前まで
     const endDate = new Date();
-    endDate.setDate(endDate.getDate() - 1); // 前日
+    endDate.setDate(endDate.getDate() - 1);
     endDate.setHours(23, 59, 59, 999);
     const startDate = new Date(endDate);
-    startDate.setMonth(startDate.getMonth() - 1); // 1か月前
+    startDate.setMonth(startDate.getMonth() - 1);
     startDate.setHours(0, 0, 0, 0);
 
     // Where条件の構築
@@ -72,8 +78,10 @@ export async function GET(request: NextRequest) {
 
     if (minEngagementRate || maxEngagementRate) {
       where.engagementRate = {};
-      if (minEngagementRate) where.engagementRate.gte = parseFloat(minEngagementRate);
-      if (maxEngagementRate) where.engagementRate.lte = parseFloat(maxEngagementRate);
+      if (minEngagementRate)
+        where.engagementRate.gte = parseFloat(minEngagementRate);
+      if (maxEngagementRate)
+        where.engagementRate.lte = parseFloat(maxEngagementRate);
     }
 
     if (minDuration || maxDuration) {
@@ -92,6 +100,43 @@ export async function GET(request: NextRequest) {
           ...(durationCategory && { durationCategory }),
         },
       };
+    }
+
+    // TikTokの場合は日本国内コンテンツのみにフィルタ
+    // PostgreSQLのRaw SQLで日本語文字を含むレコードのみ取得
+    if (platform === "tiktok") {
+      // まず日本語コンテンツの動画IDを取得
+      const japaneseVideoIds: Array<{ id: number }> = await prisma.$queryRaw`
+        SELECT id FROM videos
+        WHERE platform = 'tiktok'
+          AND posted_at >= ${startDate}
+          AND posted_at <= ${endDate}
+          AND (
+            description ~ ${JAPANESE_REGEX_PATTERN}
+            OR EXISTS (
+              SELECT 1 FROM unnest(hashtags) AS h
+              WHERE h ~ ${JAPANESE_REGEX_PATTERN}
+            )
+          )
+      `;
+      const jpIds = japaneseVideoIds.map((v) => v.id);
+
+      if (jpIds.length > 0) {
+        where.id = { in: jpIds };
+      } else {
+        // 日本語コンテンツがない場合は空の結果を返す
+        return NextResponse.json({
+          success: true,
+          data: [],
+          pagination: { page, limit, total: 0, totalPages: 0 },
+          dataRange: {
+            postedFrom: null,
+            postedTo: null,
+            collectedFrom: null,
+            collectedTo: null,
+          },
+        });
+      }
     }
 
     // ソートフィールドのマッピング
@@ -136,11 +181,13 @@ export async function GET(request: NextRequest) {
           gte: startDate,
           lte: endDate,
         },
-        ...(industryId ? {
-          videoTags: {
-            some: { industryId: parseInt(industryId) },
-          },
-        } : {}),
+        ...(industryId
+          ? {
+              videoTags: {
+                some: { industryId: parseInt(industryId) },
+              },
+            }
+          : {}),
       },
       select: {
         postedAt: true,
@@ -156,13 +203,24 @@ export async function GET(request: NextRequest) {
       .map((v) => v.collectedAt!.getTime());
 
     const dataRange = {
-      postedFrom: postedDates.length > 0 ? new Date(Math.min(...postedDates)).toISOString().split("T")[0] : null,
-      postedTo: postedDates.length > 0 ? new Date(Math.max(...postedDates)).toISOString().split("T")[0] : null,
-      collectedFrom: collectedDates.length > 0 ? new Date(Math.min(...collectedDates)).toISOString().split("T")[0] : null,
-      collectedTo: collectedDates.length > 0 ? new Date(Math.max(...collectedDates)).toISOString().split("T")[0] : null,
+      postedFrom:
+        postedDates.length > 0
+          ? new Date(Math.min(...postedDates)).toISOString().split("T")[0]
+          : null,
+      postedTo:
+        postedDates.length > 0
+          ? new Date(Math.max(...postedDates)).toISOString().split("T")[0]
+          : null,
+      collectedFrom:
+        collectedDates.length > 0
+          ? new Date(Math.min(...collectedDates)).toISOString().split("T")[0]
+          : null,
+      collectedTo:
+        collectedDates.length > 0
+          ? new Date(Math.max(...collectedDates)).toISOString().split("T")[0]
+          : null,
     };
 
-    // hashtagsはPostgreSQL配列なのでそのまま返す
     return NextResponse.json({
       success: true,
       data: videos,

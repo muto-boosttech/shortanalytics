@@ -65,11 +65,11 @@ export default function IndustriesPage() {
   const [editIndustryName, setEditIndustryName] = useState("");
   const [editIndustrySlug, setEditIndustrySlug] = useState("");
 
-  // ハッシュタグ追加フォーム
+  // ハッシュタグ追加フォーム（連続登録対応）
   const [showAddHashtag, setShowAddHashtag] = useState<number | null>(null);
-  const [newHashtag, setNewHashtag] = useState("");
-  const [newHashtagPlatform, setNewHashtagPlatform] = useState("tiktok");
+  const [newHashtagInput, setNewHashtagInput] = useState("");
   const [addingHashtag, setAddingHashtag] = useState(false);
+  const [addResult, setAddResult] = useState<{ created: number; skipped: number; message: string } | null>(null);
 
   // ハッシュタグ編集
   const [editingHashtag, setEditingHashtag] = useState<number | null>(null);
@@ -84,7 +84,7 @@ export default function IndustriesPage() {
 
   const showNotification = (type: "success" | "error", message: string) => {
     setNotification({ type, message });
-    setTimeout(() => setNotification(null), 3000);
+    setTimeout(() => setNotification(null), 4000);
   };
 
   const fetchIndustries = useCallback(async () => {
@@ -213,24 +213,33 @@ export default function IndustriesPage() {
     }
   };
 
-  // ハッシュタグ追加
-  const handleAddHashtag = async (industryId: number) => {
-    if (!newHashtag.trim()) return;
+  // ハッシュタグ一括追加（全媒体同時登録）
+  const handleAddHashtags = async (industryId: number) => {
+    if (!newHashtagInput.trim()) return;
     setAddingHashtag(true);
+    setAddResult(null);
     try {
       const res = await fetch(`/api/industries/${industryId}/hashtags`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          hashtag: newHashtag.trim().replace(/^#/, ""),
-          platform: newHashtagPlatform,
+          hashtags: newHashtagInput,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        showNotification("success", `ハッシュタグ「#${newHashtag.trim().replace(/^#/, "")}」を追加しました`);
-        setNewHashtag("");
-        setShowAddHashtag(null);
+        const createdCount = data.data.created?.length || 0;
+        const skippedCount = data.data.skipped?.length || 0;
+        const uniqueCreated = [...new Set((data.data.created || []).map((c: { hashtag: string }) => c.hashtag))].length;
+        
+        setAddResult({
+          created: uniqueCreated,
+          skipped: skippedCount,
+          message: data.data.message,
+        });
+        
+        showNotification("success", data.data.message);
+        setNewHashtagInput("");
         fetchHashtags(industryId);
         fetchIndustries();
       } else {
@@ -326,13 +335,28 @@ export default function IndustriesPage() {
     );
   }
 
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
+            <p className="text-red-600">{error}</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       {/* 通知 */}
       {notification && (
         <div
-          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all ${
-            notification.type === "success" ? "bg-green-500" : "bg-red-500"
+          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all ${
+            notification.type === "success"
+              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+              : "bg-red-50 text-red-800 border border-red-200"
           }`}
         >
           {notification.message}
@@ -342,22 +366,17 @@ export default function IndustriesPage() {
       {/* 削除確認ダイアログ */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-red-100 rounded-full">
-                <AlertCircle className="h-5 w-5 text-red-600" />
-              </div>
-              <h3 className="text-lg font-semibold">削除の確認</h3>
-            </div>
-            <p className="text-gray-600 mb-6">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">削除確認</h3>
+            <p className="text-sm text-gray-600 mb-4">
               {deleteConfirm.type === "industry"
-                ? `業種「${deleteConfirm.name}」を削除しますか？関連するハッシュタグ、動画タグ、ベンチマークデータもすべて削除されます。`
+                ? `業種「${deleteConfirm.name}」を削除しますか？関連するハッシュタグと動画タグも全て削除されます。`
                 : `ハッシュタグ「#${deleteConfirm.name}」を削除しますか？`}
             </p>
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-2">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
                 disabled={deleting}
               >
                 キャンセル
@@ -370,28 +389,27 @@ export default function IndustriesPage() {
                     handleDeleteHashtag(deleteConfirm.industryId, deleteConfirm.id);
                   }
                 }}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
                 disabled={deleting}
+                className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50"
               >
-                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "削除する"}
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "削除"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="space-y-6">
-        {/* ヘッダー */}
-        <div className="flex items-center justify-between">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">業種・ハッシュタグ管理</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              業種とハッシュタグを管理します。追加されたハッシュタグは次回のデータ収集から自動的に反映されます。
+            <p className="text-sm text-gray-500 mt-1">
+              ハッシュタグは登録時に全媒体（TikTok・YouTube・Instagram）に自動登録されます
             </p>
           </div>
           <button
             onClick={() => setShowAddIndustry(true)}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
           >
             <Plus className="h-4 w-4" />
             業種を追加
@@ -400,97 +418,85 @@ export default function IndustriesPage() {
 
         {/* 業種追加フォーム */}
         {showAddIndustry && (
-          <div className="rounded-xl border bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold mb-4">新しい業種を追加</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">業種名</label>
-                <input
-                  type="text"
-                  value={newIndustryName}
-                  onChange={(e) => {
-                    setNewIndustryName(e.target.value);
-                    if (!newIndustrySlug || newIndustrySlug === generateSlug(newIndustryName)) {
-                      setNewIndustrySlug(generateSlug(e.target.value));
-                    }
-                  }}
-                  placeholder="例: フィットネス"
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">スラッグ（英数字）</label>
-                <input
-                  type="text"
-                  value={newIndustrySlug}
-                  onChange={(e) => setNewIndustrySlug(e.target.value)}
-                  placeholder="例: fitness"
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-4">
+          <div className="mb-4 p-4 bg-white rounded-xl border shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">新しい業種を追加</h3>
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                value={newIndustryName}
+                onChange={(e) => {
+                  setNewIndustryName(e.target.value);
+                  setNewIndustrySlug(generateSlug(e.target.value));
+                }}
+                placeholder="業種名（例：フィットネス）"
+                className="flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-primary"
+                autoFocus
+              />
+              <input
+                type="text"
+                value={newIndustrySlug}
+                onChange={(e) => setNewIndustrySlug(e.target.value)}
+                placeholder="スラッグ（例：fitness）"
+                className="w-40 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-primary"
+              />
+              <button
+                onClick={handleAddIndustry}
+                disabled={addingIndustry || !newIndustryName.trim() || !newIndustrySlug.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50"
+              >
+                {addingIndustry ? <Loader2 className="h-4 w-4 animate-spin" /> : "追加"}
+              </button>
               <button
                 onClick={() => {
                   setShowAddIndustry(false);
                   setNewIndustryName("");
                   setNewIndustrySlug("");
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg"
               >
-                キャンセル
-              </button>
-              <button
-                onClick={handleAddIndustry}
-                disabled={addingIndustry || !newIndustryName.trim() || !newIndustrySlug.trim()}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50"
-              >
-                {addingIndustry ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                追加
+                <X className="h-4 w-4" />
               </button>
             </div>
           </div>
         )}
 
-        {/* エラー表示 */}
-        {error && (
-          <div className="rounded-lg bg-red-50 p-4 text-sm text-red-600">
-            <AlertCircle className="inline h-4 w-4 mr-1" />
-            {error}
-          </div>
-        )}
-
         {/* 業種一覧 */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {industries.map((industry) => (
-            <div key={industry.id} className="rounded-xl border bg-white shadow-sm overflow-hidden">
-              {/* 業種ヘッダー */}
-              <div className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
-                <div
-                  className="flex items-center gap-3 flex-1 cursor-pointer"
-                  onClick={() => toggleExpand(industry.id)}
-                >
+            <div key={industry.id} className="bg-white rounded-xl border shadow-sm overflow-hidden">
+              <div
+                className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => toggleExpand(industry.id)}
+              >
+                <div className="flex items-center gap-3">
                   {expandedIndustry === industry.id ? (
-                    <ChevronDown className="h-5 w-5 text-gray-400" />
+                    <ChevronDown className="h-4 w-4 text-gray-400" />
                   ) : (
-                    <ChevronRight className="h-5 w-5 text-gray-400" />
+                    <ChevronRight className="h-4 w-4 text-gray-400" />
                   )}
 
                   {editingIndustry === industry.id ? (
-                    <div className="flex items-center gap-2 flex-1" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="text"
                         value={editIndustryName}
                         onChange={(e) => setEditIndustryName(e.target.value)}
-                        className="rounded border px-2 py-1 text-sm focus:border-primary focus:outline-none"
-                        placeholder="業種名"
+                        className="px-2 py-1 text-sm border rounded focus:outline-none focus:border-primary"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleUpdateIndustry(industry.id);
+                          if (e.key === "Escape") setEditingIndustry(null);
+                        }}
                       />
                       <input
                         type="text"
                         value={editIndustrySlug}
                         onChange={(e) => setEditIndustrySlug(e.target.value)}
-                        className="rounded border px-2 py-1 text-sm text-gray-500 focus:border-primary focus:outline-none"
-                        placeholder="スラッグ"
+                        className="w-32 px-2 py-1 text-sm border rounded focus:outline-none focus:border-primary"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleUpdateIndustry(industry.id);
+                          if (e.key === "Escape") setEditingIndustry(null);
+                        }}
                       />
                       <button
                         onClick={() => handleUpdateIndustry(industry.id)}
@@ -665,63 +671,116 @@ export default function IndustriesPage() {
                         );
                       })}
 
-                      {/* ハッシュタグ追加 */}
+                      {/* ハッシュタグ一括追加フォーム */}
                       {showAddHashtag === industry.id ? (
-                        <div className="mt-4 flex items-center gap-2 p-3 bg-white rounded-lg border">
-                          <span className="text-gray-400">#</span>
-                          <input
-                            type="text"
-                            value={newHashtag}
-                            onChange={(e) => setNewHashtag(e.target.value)}
-                            placeholder="ハッシュタグを入力"
-                            className="flex-1 text-sm border-0 focus:outline-none"
+                        <div className="mt-4 p-4 bg-white rounded-lg border">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Hash className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-semibold text-gray-900">ハッシュタグを追加</span>
+                            <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                              全媒体に自動登録
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mb-3">
+                            複数のハッシュタグをカンマ（,）、スペース、または改行で区切って入力できます。
+                            登録時にTikTok・YouTube・Instagramの全媒体に同時登録されます。
+                          </p>
+                          <textarea
+                            value={newHashtagInput}
+                            onChange={(e) => setNewHashtagInput(e.target.value)}
+                            placeholder={"例: フィットネス, 筋トレ, ダイエット\nまたは1行に1つずつ入力"}
+                            className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-primary resize-none"
+                            rows={3}
                             autoFocus
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") handleAddHashtag(industry.id);
+                              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                                handleAddHashtags(industry.id);
+                              }
                               if (e.key === "Escape") {
                                 setShowAddHashtag(null);
-                                setNewHashtag("");
+                                setNewHashtagInput("");
+                                setAddResult(null);
                               }
                             }}
                           />
-                          <select
-                            value={newHashtagPlatform}
-                            onChange={(e) => setNewHashtagPlatform(e.target.value)}
-                            className="text-xs border rounded px-2 py-1 focus:outline-none focus:border-primary"
-                          >
-                            {PLATFORMS.map((p) => (
-                              <option key={p.value} value={p.value}>
-                                {p.label}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={() => handleAddHashtag(industry.id)}
-                            disabled={addingHashtag || !newHashtag.trim()}
-                            className="px-3 py-1 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50"
-                          >
-                            {addingHashtag ? <Loader2 className="h-3 w-3 animate-spin" /> : "追加"}
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowAddHashtag(null);
-                              setNewHashtag("");
-                            }}
-                            className="p-1 text-gray-400 hover:bg-gray-100 rounded"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
+                          
+                          {/* プレビュー */}
+                          {newHashtagInput.trim() && (
+                            <div className="mt-2 mb-3">
+                              <span className="text-xs text-gray-500">プレビュー: </span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {newHashtagInput
+                                  .split(/[,\n\s]+/)
+                                  .map((h) => h.trim().replace(/^#/, ""))
+                                  .filter((h) => h.length > 0)
+                                  .map((h, i) => (
+                                    <span
+                                      key={i}
+                                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                    >
+                                      #{h}
+                                    </span>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 登録結果 */}
+                          {addResult && (
+                            <div className="mt-2 mb-3 p-2 bg-emerald-50 rounded-lg border border-emerald-200">
+                              <p className="text-xs text-emerald-800">{addResult.message}</p>
+                              {addResult.skipped > 0 && (
+                                <p className="text-xs text-amber-600 mt-1">
+                                  {addResult.skipped}件は既に登録済みのためスキップしました
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between mt-3">
+                            <span className="text-xs text-gray-400">Ctrl+Enter で登録</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setShowAddHashtag(null);
+                                  setNewHashtagInput("");
+                                  setAddResult(null);
+                                }}
+                                className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg"
+                              >
+                                閉じる
+                              </button>
+                              <button
+                                onClick={() => handleAddHashtags(industry.id)}
+                                disabled={addingHashtag || !newHashtagInput.trim()}
+                                className="px-4 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5"
+                              >
+                                {addingHashtag ? (
+                                  <>
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    登録中...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus className="h-3 w-3" />
+                                    全媒体に登録
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <button
                           onClick={() => {
                             setShowAddHashtag(industry.id);
-                            setNewHashtagPlatform("tiktok");
+                            setNewHashtagInput("");
+                            setAddResult(null);
                           }}
                           className="mt-3 flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
                         >
                           <Plus className="h-3.5 w-3.5" />
-                          ハッシュタグを追加
+                          ハッシュタグを追加（全媒体同時登録）
                         </button>
                       )}
                     </>
