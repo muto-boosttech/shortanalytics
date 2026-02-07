@@ -137,16 +137,38 @@ const industryHashtagMapping: Record<number, string[]> = {
   21: ["ペット", "犬", "猫", "ペットホテル", "猫ホテル", "ドッグ", "キャット", "わんこ", "にゃんこ", "pet", "dog", "cat"],
 };
 
-function detectIndustryFromHashtags(hashtags: string[]): number | null {
-  const hashtagsLower = hashtags.map(h => h.toLowerCase());
+function detectIndustryFromText(hashtags: string[], description: string | null): number | null {
+  // ハッシュタグ配列 + descriptionから#付きタグを抽出して統合
+  const allTags = [...hashtags];
+  if (description) {
+    const descTags = description.match(/#([^\s#]+)/g);
+    if (descTags) {
+      allTags.push(...descTags.map(t => t.replace('#', '')));
+    }
+  }
   
+  const tagsLower = allTags.map(h => h.toLowerCase());
+  const descLower = (description || '').toLowerCase();
+  
+  // まずハッシュタグからマッチを試みる
   for (const [industryId, keywords] of Object.entries(industryHashtagMapping)) {
     for (const keyword of keywords) {
-      if (hashtagsLower.some(h => h.includes(keyword.toLowerCase()))) {
+      const kw = keyword.toLowerCase();
+      if (tagsLower.some(h => h.includes(kw))) {
         return parseInt(industryId);
       }
     }
   }
+  
+  // ハッシュタグでマッチしない場合はdescription全体からキーワードを検索
+  for (const [industryId, keywords] of Object.entries(industryHashtagMapping)) {
+    for (const keyword of keywords) {
+      if (descLower.includes(keyword.toLowerCase())) {
+        return parseInt(industryId);
+      }
+    }
+  }
+  
   return null;
 }
 
@@ -223,7 +245,7 @@ export async function POST(request: NextRequest) {
       let targetIndustryId = industryId;
       if (!targetIndustryId) {
         const hashtags = Array.isArray(video.hashtags) ? video.hashtags : [];
-        targetIndustryId = detectIndustryFromHashtags(hashtags as string[]) || 11; // デフォルトはフィットネス
+        targetIndustryId = detectIndustryFromText(hashtags as string[], video.description) || 11; // デフォルトはフィットネス
       }
 
       // 既存タグの確認（メモリ内で高速チェック）
