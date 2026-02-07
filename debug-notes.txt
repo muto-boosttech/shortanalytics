@@ -1,0 +1,9 @@
+Error: Checkoutセッション作成エラー: Not a valid URL
+This means the fetch call to Stripe API is failing because the URL is not valid.
+The STRIPE_SECRET_KEY env var might be empty on Vercel, causing the fetch URL to be malformed.
+Or the PLAN_PRICE_MAP is returning empty strings because env vars are not loaded at module level.
+
+PLAN_PRICE_MAP is defined at module level using process.env - this should work in Next.js API routes.
+But the issue might be that the env vars are not available when the module is first loaded.
+
+Need to make PLAN_PRICE_MAP lazy as well.
