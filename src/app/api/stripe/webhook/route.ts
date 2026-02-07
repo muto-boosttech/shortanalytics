@@ -14,11 +14,12 @@ export async function POST(request: NextRequest) {
 
   try {
     // Webhook Secretが設定されている場合は署名を検証
-    if (process.env.STRIPE_WEBHOOK_SECRET) {
+    const webhookSecret = (process.env.STRIPE_WEBHOOK_SECRET || "").trim();
+    if (webhookSecret) {
       event = stripe.webhooks.constructEvent(
         body,
         sig!,
-        process.env.STRIPE_WEBHOOK_SECRET
+        webhookSecret
       );
     } else {
       // 開発環境: 署名検証なし
