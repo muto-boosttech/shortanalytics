@@ -83,7 +83,7 @@ async function callApifyWithRetry(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { hashtags, industryId, resultsPerPage = 30, apiToken } = body;
+    let { hashtags, industryId, resultsPerPage = 30, apiToken } = body;
 
     // UIから渡されたトークンまたは環境変数のトークンを使用
     const APIFY_API_TOKEN = apiToken || process.env.APIFY_API_TOKEN;
@@ -98,18 +98,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!hashtags || !Array.isArray(hashtags) || hashtags.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "ハッシュタグの配列が必要です" },
-        { status: 400 }
-      );
-    }
-
-    // 業種の存在確認（オプション）
+    // 業種の存在確認とハッシュタグ取得
     let industry = null;
     if (industryId) {
       industry = await prisma.industry.findUnique({
         where: { id: industryId },
+        include: {
+          hashtags: {
+            where: {
+              isActive: true,
+              platform: "tiktok",
+            },
+          },
+        },
       });
 
       if (!industry) {
@@ -118,6 +119,18 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         );
       }
+
+      // 業種のDBハッシュタグを使用（ハッシュタグが指定されていない場合）
+      if (!hashtags || !Array.isArray(hashtags) || hashtags.length === 0) {
+        hashtags = industry.hashtags.map((h: { hashtag: string }) => h.hashtag);
+      }
+    }
+
+    if (!hashtags || !Array.isArray(hashtags) || hashtags.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "ハッシュタグの配列が必要です" },
+        { status: 400 }
+      );
     }
 
     // 収集ログを作成

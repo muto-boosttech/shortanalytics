@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getSession } from "@/lib/auth-helper";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -51,9 +52,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// POST /api/industries/[id]/hashtags - 新規ハッシュタグを追加
+// POST /api/industries/[id]/hashtags - 新規ハッシュタグを追加（マスター管理者のみ）
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
+    const session = await getSession();
+    if (!session || session.role !== "master_admin") {
+      return NextResponse.json(
+        { success: false, error: "マスター管理者権限が必要です" },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const industryId = parseInt(id);
 
@@ -65,7 +74,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { hashtag, isActive = true } = body;
+    const { hashtag, isActive = true, platform = "tiktok" } = body;
 
     if (!hashtag) {
       return NextResponse.json(
@@ -86,11 +95,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // 重複チェック
+    // 重複チェック（同じ業種・ハッシュタグ・プラットフォームの組み合わせ）
     const existing = await prisma.industryHashtag.findFirst({
       where: {
         industryId,
         hashtag,
+        platform,
       },
     });
 
@@ -101,11 +111,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // プラットフォームのバリデーション
+    const validPlatforms = ["tiktok", "youtube", "instagram"];
+    if (!validPlatforms.includes(platform)) {
+      return NextResponse.json(
+        { success: false, error: `プラットフォームは ${validPlatforms.join(", ")} のいずれかを指定してください` },
+        { status: 400 }
+      );
+    }
+
     const newHashtag = await prisma.industryHashtag.create({
       data: {
         industryId,
         hashtag,
         isActive,
+        platform,
       },
     });
 

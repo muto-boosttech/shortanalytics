@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getSession } from "@/lib/auth-helper";
 
 // GET /api/industries - 全業種を取得
 export async function GET() {
@@ -31,9 +32,17 @@ export async function GET() {
   }
 }
 
-// POST /api/industries - 新規業種を作成
+// POST /api/industries - 新規業種を作成（マスター管理者のみ）
 export async function POST(request: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session || session.role !== "master_admin") {
+      return NextResponse.json(
+        { success: false, error: "マスター管理者権限が必要です" },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { name, slug } = body;
 

@@ -131,6 +131,7 @@ export async function POST(request: NextRequest) {
           hashtags: {
             where: { 
               isActive: true,
+              platform: "youtube",
             },
           },
         },

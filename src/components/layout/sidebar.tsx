@@ -13,6 +13,7 @@ import {
   Users,
   X,
   CreditCard,
+  Tags,
 } from "lucide-react";
 
 interface NavItem {
@@ -27,6 +28,7 @@ const navigation: NavItem[] = [
   { name: "ランキング", href: "/ranking", icon: Trophy },
   { name: "データ収集", href: "/collect", icon: Database },
   { name: "タギング&BM", href: "/admin", icon: Settings, requiredRole: ["master_admin", "admin"] },
+  { name: "業種・ハッシュタグ", href: "/industries", icon: Tags, requiredRole: ["master_admin"] },
   { name: "ユーザー管理", href: "/users", icon: Users, requiredRole: ["master_admin", "admin"] },
   { name: "プラン・お支払い", href: "/settings", icon: CreditCard },
 ];
