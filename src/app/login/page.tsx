@@ -52,7 +52,7 @@ function LoginForm() {
           <div className="flex justify-center mb-4">
             <Image 
               src="/logo.png" 
-              alt="BOOSTTECH 縦型ショート動画分析" 
+              alt="縦型ショート Analytics" 
               width={280}
               height={60}
               className="h-14 sm:h-16 w-auto object-contain"

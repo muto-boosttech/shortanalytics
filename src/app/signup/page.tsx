@@ -408,14 +408,8 @@ function SignupPageContent() {
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrollY > 50 ? "bg-white/95 backdrop-blur-md shadow-sm" : "bg-transparent"}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <span className="text-[10px] text-emerald-600 font-bold tracking-wider block leading-none">BOOSTTECH</span>
-                <span className="text-sm font-bold text-gray-900">縦型ショート動画<span className="text-emerald-600">分析</span></span>
-              </div>
+            <div className="flex items-center">
+              <Image src="/logo.png" alt="縦型ショート Analytics" width={200} height={40} className="h-8 w-auto" />
             </div>
             <nav className="hidden md:flex items-center gap-8">
               <a href="#about" className={`text-sm font-medium transition-colors ${scrollY > 50 ? "text-gray-600 hover:text-emerald-600" : "text-gray-700 hover:text-emerald-600"}`}>サービス概要</a>
@@ -1302,14 +1296,8 @@ function SignupPageContent() {
       <footer className="bg-gray-900 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <span className="text-[10px] text-emerald-400 font-bold tracking-wider block leading-none">BOOSTTECH</span>
-                <span className="text-sm font-bold text-white">縦型ショート動画<span className="text-emerald-400">分析</span></span>
-              </div>
+            <div className="flex items-center">
+              <Image src="/logo.png" alt="縦型ショート Analytics" width={200} height={40} className="h-8 w-auto brightness-0 invert" />
             </div>
             <div className="flex items-center gap-6 text-sm text-gray-400">
               <a href="/terms" className="hover:text-white transition-colors">利用規約</a>

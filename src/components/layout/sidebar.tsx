@@ -68,7 +68,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           <div className="flex items-center">
             <Image 
               src="/logo.png" 
-              alt="BOOSTTECH 縦型ショート動画分析" 
+              alt="縦型ショート Analytics" 
               width={180}
               height={40}
               className="h-10 w-auto object-contain"
