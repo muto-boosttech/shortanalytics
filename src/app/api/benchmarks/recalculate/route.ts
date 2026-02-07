@@ -4,8 +4,20 @@ import prisma from "@/lib/prisma";
 // POST /api/benchmarks/recalculate - ベンチマークを再計算
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { industryId, periodDays = 30 } = body;
+    // クエリパラメータからindustryIdを取得
+    const url = new URL(request.url);
+    const queryIndustryId = url.searchParams.get("industry_id");
+
+    // bodyからも取得を試みる（bodyがない場合も対応）
+    let body: { industryId?: number; periodDays?: number } = {};
+    try {
+      body = await request.json();
+    } catch {
+      // bodyがない場合は空オブジェクト
+    }
+
+    const industryId = body.industryId || (queryIndustryId ? parseInt(queryIndustryId) : undefined);
+    const periodDays = body.periodDays || 30;
 
     // 期間の設定: 前日から1か月前まで
     const periodEnd = new Date();

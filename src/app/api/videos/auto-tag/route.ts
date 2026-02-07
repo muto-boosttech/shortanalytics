@@ -149,16 +149,21 @@ function detectIndustryFromHashtags(hashtags: string[]): number | null {
   return null;
 }
 
-// POST /api/videos/auto-tag - 動画に自動タグ付け
+// POST /api/videos/auto-tag - 動画に自動タグ付け（バッチ処理対応）
 export async function POST(request: NextRequest) {
   try {
-    let body = {};
+    // クエリパラメータからも読む
+    const url = new URL(request.url);
+    const queryIndustryId = url.searchParams.get("industry_id");
+
+    let body: { videoIds?: number[]; industryId?: number } = {};
     try {
       body = await request.json();
     } catch {
       // bodyがない場合は空オブジェクト
     }
-    const { videoIds, industryId } = body as { videoIds?: number[]; industryId?: number };
+    const { videoIds } = body;
+    const industryId = body.industryId || (queryIndustryId ? parseInt(queryIndustryId) : undefined);
 
     // 対象動画を取得
     let videos;
@@ -181,7 +186,34 @@ export async function POST(request: NextRequest) {
       processed: 0,
       tagged: 0,
       skipped: 0,
+      total: videos.length,
     };
+
+    // バッチ処理: createManyで一括挿入するためのデータを準備
+    const tagsToCreate: {
+      videoId: number;
+      industryId: number;
+      contentType: string | null;
+      hookType: string | null;
+      durationCategory: string;
+      performerType: string | null;
+      tone: string | null;
+      ctaType: string | null;
+    }[] = [];
+
+    // 既存タグのvideoId+industryIdのセットを一括取得
+    const existingTags = await prisma.videoTag.findMany({
+      where: {
+        videoId: { in: videos.map(v => v.id) },
+      },
+      select: {
+        videoId: true,
+        industryId: true,
+      },
+    });
+    const existingTagSet = new Set(
+      existingTags.map(t => `${t.videoId}-${t.industryId}`)
+    );
 
     for (const video of videos) {
       results.processed++;
@@ -190,23 +222,17 @@ export async function POST(request: NextRequest) {
       let targetIndustryId = industryId;
       if (!targetIndustryId) {
         const hashtags = Array.isArray(video.hashtags) ? video.hashtags : [];
-        targetIndustryId = detectIndustryFromHashtags(hashtags) || 11; // デフォルトはフィットネス
+        targetIndustryId = detectIndustryFromHashtags(hashtags as string[]) || 11; // デフォルトはフィットネス
       }
 
-      // 既存のタグを確認
-      const existingTag = await prisma.videoTag.findFirst({
-        where: {
-          videoId: video.id,
-          industryId: targetIndustryId,
-        },
-      });
-
-      if (existingTag) {
+      // 既存タグの確認（メモリ内で高速チェック）
+      const tagKey = `${video.id}-${targetIndustryId}`;
+      if (existingTagSet.has(tagKey)) {
         results.skipped++;
         continue;
       }
 
-      const text = `${video.description || ""} ${Array.isArray(video.hashtags) ? video.hashtags.join(" ") : ""}`;
+      const text = `${video.description || ""} ${Array.isArray(video.hashtags) ? (video.hashtags as string[]).join(" ") : ""}`;
 
       const contentType = detectTag(text, contentTypeRules);
       const hookType = detectTag(text, hookTypeRules);
@@ -215,20 +241,31 @@ export async function POST(request: NextRequest) {
       const ctaType = detectTag(text, ctaTypeRules);
       const durationCategory = getDurationCategory(video.videoDurationSeconds);
 
-      await prisma.videoTag.create({
-        data: {
-          videoId: video.id,
-          industryId: targetIndustryId,
-          contentType,
-          hookType,
-          durationCategory,
-          performerType,
-          tone,
-          ctaType,
-        },
+      tagsToCreate.push({
+        videoId: video.id,
+        industryId: targetIndustryId,
+        contentType,
+        hookType,
+        durationCategory,
+        performerType,
+        tone,
+        ctaType,
       });
 
       results.tagged++;
+    }
+
+    // バッチ一括挿入（createManyで高速化）
+    if (tagsToCreate.length > 0) {
+      // 500件ずつバッチ挿入
+      const BATCH_SIZE = 500;
+      for (let i = 0; i < tagsToCreate.length; i += BATCH_SIZE) {
+        const batch = tagsToCreate.slice(i, i + BATCH_SIZE);
+        await prisma.videoTag.createMany({
+          data: batch,
+          skipDuplicates: true,
+        });
+      }
     }
 
     return NextResponse.json({
