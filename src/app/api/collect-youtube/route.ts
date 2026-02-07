@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// POST /api/collect-youtube - Apify YouTube Scraperを非同期で開始
+// POST /api/collect-youtube - Apify YouTube Video Scraper by Hashtagを非同期で開始
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -47,9 +47,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 検索キーワードを作成
-    const searchKeywords = hashtags.map((h: string) =>
-      h.startsWith("#") ? h : `#${h}`
+    // ハッシュタグを整形（#を除去）
+    const cleanHashtags = hashtags.map((h: string) =>
+      h.startsWith("#") ? h.substring(1) : h
     );
 
     // 収集ログを作成
@@ -63,18 +63,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Apifyジョブを非同期で開始
-    const apifyUrl = `https://api.apify.com/v2/acts/streamers~youtube-scraper/runs?token=${APIFY_API_TOKEN}`;
+    // Apifyジョブを非同期で開始 - youtube-video-scraper-by-hashtag Actorを使用
+    const apifyUrl = `https://api.apify.com/v2/acts/streamers~youtube-video-scraper-by-hashtag/runs?token=${APIFY_API_TOKEN}`;
 
     const apifyResponse = await fetch(apifyUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        searchKeywords,
+        hashtags: cleanHashtags,
         maxResults,
-        maxResultsShorts: maxResults,
-        searchType: "video",
-        verboseLog: false,
       }),
     });
 

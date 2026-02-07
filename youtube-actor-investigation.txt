@@ -1,0 +1,13 @@
+YouTube Actor Investigation
+===========================
+
+現在使用中: streamers~youtube-scraper
+入力パラメータ: searchKeywords, maxResults, maxResultsShorts, searchType
+結果: exitCode 91で全て失敗
+
+代替候補: streamers~youtube-video-scraper-by-hashtag
+入力パラメータ: hashtags (配列), maxResults (数値)
+API URL: https://api.apify.com/v2/acts/streamers~youtube-video-scraper-by-hashtag/runs
+
+この Actor はハッシュタグベースでYouTube動画を検索するので、
+現在の用途に最適。入力形式もTikTok用のActorと似ている。
