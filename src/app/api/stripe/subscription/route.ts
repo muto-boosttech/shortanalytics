@@ -1,25 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { cookies } from "next/headers";
+import { getSession } from "@/lib/auth-helper";
 import { PLAN_DISPLAY_NAMES, PLAN_PRICES } from "@/lib/stripe";
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("session");
-    if (!sessionCookie) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
     }
 
-    let sessionData;
-    try {
-      sessionData = JSON.parse(sessionCookie.value);
-    } catch {
-      return NextResponse.json({ error: "セッションが無効です" }, { status: 401 });
-    }
-
     const user = await prisma.user.findUnique({
-      where: { id: sessionData.userId },
+      where: { id: session.userId },
       select: {
         id: true,
         plan: true,
