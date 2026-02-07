@@ -62,6 +62,29 @@ function parseDuration(duration: string | undefined): number | null {
   return null;
 }
 
+function parseRelativeDate(dateStr: string | undefined): Date | null {
+  if (!dateStr) return null;
+  // まず通常のDate.parseを試す
+  const parsed = new Date(dateStr);
+  if (!isNaN(parsed.getTime())) return parsed;
+  // 相対日付をパース: "6 months ago", "2 weeks ago", "1 year ago", etc.
+  const match = dateStr.match(/(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago/i);
+  if (!match) return null;
+  const amount = parseInt(match[1]);
+  const unit = match[2].toLowerCase();
+  const now = new Date();
+  switch (unit) {
+    case 'second': now.setSeconds(now.getSeconds() - amount); break;
+    case 'minute': now.setMinutes(now.getMinutes() - amount); break;
+    case 'hour': now.setHours(now.getHours() - amount); break;
+    case 'day': now.setDate(now.getDate() - amount); break;
+    case 'week': now.setDate(now.getDate() - amount * 7); break;
+    case 'month': now.setMonth(now.getMonth() - amount); break;
+    case 'year': now.setFullYear(now.getFullYear() - amount); break;
+  }
+  return now;
+}
+
 // POST /api/collect/complete - Apifyジョブ完了後にデータセットを取得してDBに保存
 export async function POST(request: NextRequest) {
   try {
@@ -173,9 +196,10 @@ export async function POST(request: NextRequest) {
       // Shortsのみフィルタリング
       const shortsOnly = apifyData.filter((item) => {
         const isShortUrl = item.url?.includes("/shorts/");
+        const isShortType = item.type === 'shorts';
         const duration = parseDuration(item.duration);
         const isShortDuration = duration !== null && duration <= 60;
-        return isShortUrl || isShortDuration;
+        return isShortUrl || isShortType || isShortDuration;
       });
 
       for (const item of shortsOnly) {
@@ -185,7 +209,7 @@ export async function POST(request: NextRequest) {
         const shareCount = 0;
         const engagementRate = viewCount > 0 ? (likeCount + commentCount) / viewCount : 0;
         const hashtagsArray = item.hashtags || [];
-        const postedAt = item.date ? new Date(item.date) : null;
+        const postedAt = parseRelativeDate(item.date);
         const durationSeconds = parseDuration(item.duration);
         const videoId = `yt_${item.id}`;
         const description = item.title || item.text || "";

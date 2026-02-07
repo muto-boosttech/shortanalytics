@@ -1,0 +1,20 @@
+YouTube Video Scraper by Hashtag - フィールドマッピング
+=====================================================
+
+id: 'oPGgXMc1Ex4' → item.id (OK)
+title: 'Mom Dog and Cat Team Up...' → item.title (OK)
+duration: '0:06' → item.duration (OK, parseDuration対応済み)
+channelName: 'Healing Animal Energy' → item.channelName (OK)
+channelUsername: None → 新フィールド
+channelUrl: 'https://...' → item.channelUrl (OK)
+date: '6 months ago' → ★問題★ 相対日付形式！ new Date("6 months ago") = Invalid Date
+url: 'https://www.youtube.com/shorts/oPGgXMc1Ex4' → item.url (OK)
+viewCount: 27193866 → item.viewCount (OK)
+type: 'shorts' → item.type (OK)
+thumbnailUrl: '...' → item.thumbnailUrl (OK)
+fromYTUrl: ハッシュタグURL
+hashtagCategoryData: カテゴリ情報
+
+★修正必要: date が "6 months ago" のような相対日付
+→ postedAt を null にするか、相対日付をパースする
+→ likes, commentsCount がない → 0で保存
