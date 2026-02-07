@@ -1,15 +1,33 @@
 import Stripe from "stripe";
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-01-27.acacia" as Stripe.LatestApiVersion,
-  typescript: true,
+// 遅延初期化でビルド時のAPIキー不在エラーを回避
+let _stripe: Stripe | null = null;
+
+export function getStripe(): Stripe {
+  if (!_stripe) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error("STRIPE_SECRET_KEY is not set");
+    }
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2025-01-27.acacia" as Stripe.LatestApiVersion,
+      typescript: true,
+    });
+  }
+  return _stripe;
+}
+
+// 後方互換性のためのexport（ランタイムでのみ使用）
+export const stripe = new Proxy({} as Stripe, {
+  get(_target, prop) {
+    return (getStripe() as any)[prop];
+  },
 });
 
 // プラン名とStripe Price IDのマッピング
 export const PLAN_PRICE_MAP: Record<string, string> = {
-  starter: process.env.STRIPE_PRICE_STARTER!,
-  premium: process.env.STRIPE_PRICE_PREMIUM!,
-  max: process.env.STRIPE_PRICE_MAX!,
+  starter: process.env.STRIPE_PRICE_STARTER || "",
+  premium: process.env.STRIPE_PRICE_PREMIUM || "",
+  max: process.env.STRIPE_PRICE_MAX || "",
 };
 
 // Stripe Price IDからプラン名を逆引き
