@@ -42,10 +42,14 @@ interface BenchmarkResult {
   success: boolean;
   message: string;
   data?: {
-    industryId: number;
-    sampleSize: number;
-    avgEngagementRate: number;
-    medianViewCount: number;
+    recalculated: number;
+    results: {
+      industryId: number;
+      industryName: string;
+      sampleSize: number;
+      avgEngagementRate: number;
+      medianViewCount: number;
+    }[];
   };
 }
 
@@ -163,7 +167,7 @@ export default function AdminPage() {
       setBenchmarkResult({
         success: data.success,
         message: data.success
-          ? "ベンチマークを再計算しました"
+          ? `${data.data?.recalculated || 0}業種のベンチマークを再計算しました`
           : data.error || "再計算に失敗しました",
         data: data.success ? data.data : undefined,
       });
@@ -365,15 +369,19 @@ export default function AdminPage() {
                     </span>
                   </div>
                   {benchmarkResult.data && (
-                    <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-500">サンプル数</p>
-                        <p className="font-bold">{benchmarkResult.data.sampleSize}</p>
+                    <div className="mt-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">再計算業種数</span>
+                        <span className="font-bold">{benchmarkResult.data.recalculated}業種</span>
                       </div>
-                      <div>
-                        <p className="text-gray-500">平均ER</p>
-                        <p className="font-bold">{formatPercent(benchmarkResult.data.avgEngagementRate)}</p>
-                      </div>
+                      {benchmarkResult.data.results && benchmarkResult.data.results.length > 0 && (
+                        <div className="mt-1 flex justify-between">
+                          <span className="text-gray-500">総サンプル数</span>
+                          <span className="font-bold">
+                            {benchmarkResult.data.results.reduce((sum, r) => sum + r.sampleSize, 0)}件
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
