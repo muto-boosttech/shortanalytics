@@ -5,7 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatNumber(num: number): string {
+export function formatNumber(num: number | null | undefined): string {
+  if (num == null) return "0";
   if (num >= 1000000) {
     return (num / 1000000).toFixed(1) + "M";
   }
@@ -15,11 +16,13 @@ export function formatNumber(num: number): string {
   return num.toString();
 }
 
-export function formatPercent(num: number): string {
+export function formatPercent(num: number | null | undefined): string {
+  if (num == null) return "0.00%";
   return (num * 100).toFixed(2) + "%";
 }
 
-export function formatDate(date: string | Date): string {
+export function formatDate(date: string | Date | null | undefined): string {
+  if (!date) return "-";
   return new Date(date).toLocaleDateString("ja-JP", {
     year: "numeric",
     month: "short",
@@ -27,7 +30,8 @@ export function formatDate(date: string | Date): string {
   });
 }
 
-export function formatDateTime(date: string | Date): string {
+export function formatDateTime(date: string | Date | null | undefined): string {
+  if (!date) return "-";
   return new Date(date).toLocaleString("ja-JP", {
     year: "numeric",
     month: "short",

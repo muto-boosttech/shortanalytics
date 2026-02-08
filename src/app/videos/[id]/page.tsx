@@ -35,21 +35,22 @@ interface Video {
   commentCount: number;
   shareCount: number;
   engagementRate: number;
-  videoDurationSeconds: number;
+  videoDurationSeconds: number | null;
   authorUsername: string;
-  authorFollowerCount: number;
+  authorFollowerCount: number | null;
   thumbnailUrl: string;
-  postedAt: string;
+  postedAt: string | null;
   collectedAt: string;
   source: string;
+  platform: string;
   videoTags: Array<{
     id: number;
-    contentType: string;
-    hookType: string;
-    durationCategory: string;
-    performerType: string;
-    tone: string;
-    ctaType: string;
+    contentType: string | null;
+    hookType: string | null;
+    durationCategory: string | null;
+    performerType: string | null;
+    tone: string | null;
+    ctaType: string | null;
     industry: { id: number; name: string };
   }>;
 }
@@ -59,6 +60,28 @@ interface Benchmark {
   medianViewCount: number;
   topContentTypes: Record<string, number>;
   topHookTypes: Record<string, number>;
+}
+
+// プラットフォーム判定ヘルパー
+function getPlatformInfo(video: Video) {
+  const platform = video.platform || 
+    (video.tiktokVideoId?.startsWith("yt_") ? "youtube" : 
+     video.tiktokVideoId?.startsWith("ig_") ? "instagram" : "tiktok");
+  
+  switch (platform) {
+    case "youtube":
+      return { label: "YouTubeで見る", name: "YouTube" };
+    case "instagram":
+      return { label: "Instagramで見る", name: "Instagram" };
+    default:
+      return { label: "TikTokで見る", name: "TikTok" };
+  }
+}
+
+// 動画尺フォーマット
+function formatDuration(seconds: number | null | undefined): string {
+  if (!seconds && seconds !== 0) return "0:00";
+  return `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, "0")}`;
 }
 
 export default function VideoDetailPage() {
@@ -77,22 +100,35 @@ export default function VideoDetailPage() {
             setVideo(data.data);
             // Fetch benchmark for the industry
             if (data.data.videoTags && data.data.videoTags.length > 0) {
-              const industryId = data.data.videoTags[0].industry.id;
-              fetch(`/api/benchmarks?industry_id=${industryId}`)
-                .then((res) => res.json())
-                .then((bmData) => {
-                  if (bmData.success && bmData.data.length > 0) {
-                    setBenchmark(bmData.data[0]);
-                  }
-                });
+              const industryId = data.data.videoTags[0].industry?.id;
+              if (industryId) {
+                fetch(`/api/benchmarks?industry_id=${industryId}`)
+                  .then((res) => res.json())
+                  .then((bmData) => {
+                    if (bmData.success && bmData.data.length > 0) {
+                      setBenchmark(bmData.data[0]);
+                    }
+                  });
+              }
             }
           }
+          setLoading(false);
+        })
+        .catch(() => {
           setLoading(false);
         });
     }
   }, [params.id]);
 
   const getDiffIndicator = (value: number, benchmark: number) => {
+    if (!benchmark || benchmark === 0) {
+      return {
+        icon: Minus,
+        color: "text-gray-500",
+        bgColor: "bg-gray-50",
+        text: "N/A",
+      };
+    }
     const diff = ((value - benchmark) / benchmark) * 100;
     if (diff > 10) {
       return {
@@ -138,11 +174,12 @@ export default function VideoDetailPage() {
     );
   }
 
+  const platformInfo = getPlatformInfo(video);
   const erDiff = benchmark
-    ? getDiffIndicator(video.engagementRate, benchmark.avgEngagementRate)
+    ? getDiffIndicator(video.engagementRate || 0, benchmark.avgEngagementRate)
     : null;
   const viewDiff = benchmark
-    ? getDiffIndicator(video.viewCount, benchmark.medianViewCount)
+    ? getDiffIndicator(video.viewCount || 0, benchmark.medianViewCount)
     : null;
 
   return (
@@ -166,27 +203,30 @@ export default function VideoDetailPage() {
                   <VideoThumbnail
                     videoId={video.tiktokVideoId}
                     thumbnailUrl={video.thumbnailUrl}
-                    description={video.description}
+                    description={video.description || ""}
                     className="h-full w-full"
                     showPlayIcon={true}
                   />
-                  <div className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs sm:text-sm text-white">
-                    {Math.floor(video.videoDurationSeconds / 60)}:
-                    {(video.videoDurationSeconds % 60).toString().padStart(2, "0")}
-                  </div>
+                  {video.videoDurationSeconds != null && (
+                    <div className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs sm:text-sm text-white">
+                      {formatDuration(video.videoDurationSeconds)}
+                    </div>
+                  )}
                 </div>
                 <div className="mt-3 sm:mt-4">
-                  <a
-                    href={video.videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block"
-                  >
-                    <Button className="w-full h-9 sm:h-10 text-sm sm:text-base">
-                      <ExternalLink className="h-4 w-4 mr-1.5" />
-                      TikTokで見る
-                    </Button>
-                  </a>
+                  {video.videoUrl && (
+                    <a
+                      href={video.videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
+                      <Button className="w-full h-9 sm:h-10 text-sm sm:text-base">
+                        <ExternalLink className="h-4 w-4 mr-1.5" />
+                        {platformInfo.label}
+                      </Button>
+                    </a>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -200,10 +240,10 @@ export default function VideoDetailPage() {
                 <CardTitle className="text-sm sm:text-base">説明</CardTitle>
               </CardHeader>
               <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-                <p className="whitespace-pre-wrap text-xs sm:text-sm text-gray-700 line-clamp-6 sm:line-clamp-none">{video.description}</p>
+                <p className="whitespace-pre-wrap text-xs sm:text-sm text-gray-700 line-clamp-6 sm:line-clamp-none">{video.description || "（説明なし）"}</p>
                 {video.hashtags && video.hashtags.length > 0 && (
                   <div className="mt-3 sm:mt-4 flex flex-wrap gap-1.5 sm:gap-2">
-                    {video.hashtags.map((tag, index) => (
+                    {video.hashtags.filter(tag => tag && tag.trim()).map((tag, index) => (
                       <Badge key={index} variant="secondary" className="text-[10px] sm:text-xs">
                         #{tag}
                       </Badge>
@@ -293,14 +333,16 @@ export default function VideoDetailPage() {
                     <User className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="text-[10px] sm:text-xs text-gray-500">ユーザー名</p>
-                      <p className="text-xs sm:text-sm font-medium truncate">@{video.authorUsername}</p>
+                      <p className="text-xs sm:text-sm font-medium truncate">@{video.authorUsername || "不明"}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="text-[10px] sm:text-xs text-gray-500">フォロワー数</p>
-                      <p className="text-xs sm:text-sm font-medium truncate">{formatNumber(video.authorFollowerCount)}</p>
+                      <p className="text-xs sm:text-sm font-medium truncate">
+                        {video.authorFollowerCount != null ? formatNumber(video.authorFollowerCount) : "不明"}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -329,43 +371,43 @@ export default function VideoDetailPage() {
                 </CardHeader>
                 <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                   <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-                    {video.videoTags[0].industry && (
+                    {video.videoTags[0]?.industry && (
                       <div>
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-1">業種</p>
                         <Badge variant="default" className="text-[10px] sm:text-xs">{video.videoTags[0].industry.name}</Badge>
                       </div>
                     )}
-                    {video.videoTags[0].contentType && (
+                    {video.videoTags[0]?.contentType && (
                       <div>
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-1">コンテンツ類型</p>
                         <Badge variant="secondary" className="text-[10px] sm:text-xs">{video.videoTags[0].contentType}</Badge>
                       </div>
                     )}
-                    {video.videoTags[0].hookType && (
+                    {video.videoTags[0]?.hookType && (
                       <div>
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-1">フックタイプ</p>
                         <Badge variant="outline" className="text-[10px] sm:text-xs">{video.videoTags[0].hookType}</Badge>
                       </div>
                     )}
-                    {video.videoTags[0].durationCategory && (
+                    {video.videoTags[0]?.durationCategory && (
                       <div>
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-1">尺カテゴリ</p>
                         <Badge variant="secondary" className="text-[10px] sm:text-xs">{video.videoTags[0].durationCategory}</Badge>
                       </div>
                     )}
-                    {video.videoTags[0].performerType && (
+                    {video.videoTags[0]?.performerType && (
                       <div>
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-1">出演者タイプ</p>
                         <Badge variant="outline" className="text-[10px] sm:text-xs">{video.videoTags[0].performerType}</Badge>
                       </div>
                     )}
-                    {video.videoTags[0].tone && (
+                    {video.videoTags[0]?.tone && (
                       <div>
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-1">トーン</p>
                         <Badge variant="secondary" className="text-[10px] sm:text-xs">{video.videoTags[0].tone}</Badge>
                       </div>
                     )}
-                    {video.videoTags[0].ctaType && (
+                    {video.videoTags[0]?.ctaType && (
                       <div>
                         <p className="text-[10px] sm:text-xs text-gray-500 mb-1">CTAタイプ</p>
                         <Badge variant="outline" className="text-[10px] sm:text-xs">{video.videoTags[0].ctaType}</Badge>
