@@ -12,12 +12,46 @@ interface VideoThumbnailProps {
 }
 
 /**
+ * Instagram CDN URLかどうかを判定
+ */
+function isInstagramCdnUrl(url: string): boolean {
+  return url.includes("cdninstagram.com") || url.includes("fbcdn.net");
+}
+
+/**
+ * Instagram CDN URLの署名が期限切れかどうかを判定
+ */
+function isInstagramUrlExpired(url: string): boolean {
+  const match = url.match(/oe=([0-9a-fA-F]+)/);
+  if (!match) return true;
+  
+  try {
+    const expiryTimestamp = parseInt(match[1], 16);
+    const now = Math.floor(Date.now() / 1000);
+    // 1時間のバッファを持たせる
+    return expiryTimestamp < (now + 3600);
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Instagram CDN URLをプロキシURL経由に変換
+ */
+function toProxyUrl(url: string): string {
+  if (isInstagramCdnUrl(url)) {
+    return `/api/image-proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
+/**
  * 動画のサムネイルを表示するコンポーネント（TikTok/YouTube/Instagram対応）
  * 
- * 優先順位:
- * 1. DBに保存されたthumbnailUrl
- * 2. 画像読み込み失敗時はサーバーサイドAPIでrefresh=trueでoEmbed再取得
- * 3. グラデーションプレースホルダー
+ * Instagram動画の場合:
+ * 1. DBのthumbnailUrlの署名が有効 → プロキシ経由で表示
+ * 2. 署名切れ → thumbnail APIでembedページから最新URLを再取得 → プロキシ経由で表示
+ * 3. 取得失敗 → グラデーションプレースホルダー
  */
 export function VideoThumbnail({
   videoId,
@@ -55,14 +89,6 @@ export function VideoThumbnail({
       prevVideoIdRef.current = videoId;
     }
 
-    // DBに保存されたサムネイルURLがあれば使用
-    if (thumbnailUrl) {
-      setImgSrc(thumbnailUrl);
-      setIsLoading(false);
-      setHasError(false);
-      return;
-    }
-
     // YouTube動画の場合、サムネイルURLを直接生成
     if (platform === "youtube") {
       const ytId = videoId.replace("yt_", "");
@@ -72,22 +98,31 @@ export function VideoThumbnail({
       return;
     }
 
-    // TikTok/Instagram動画の場合、サーバーサイドAPIを通じて取得
-    if (platform === "tiktok" || platform === "instagram") {
-      const fetchThumbnail = async () => {
+    // Instagram動画の場合
+    if (platform === "instagram") {
+      // DBのURLがあり、署名が有効ならプロキシ経由で表示
+      if (thumbnailUrl && isInstagramCdnUrl(thumbnailUrl) && !isInstagramUrlExpired(thumbnailUrl)) {
+        setImgSrc(toProxyUrl(thumbnailUrl));
+        setIsLoading(false);
+        setHasError(false);
+        return;
+      }
+
+      // 署名切れまたはURLなし → thumbnail APIでembedページから最新URLを取得
+      const fetchFreshThumbnail = async () => {
         try {
-          const response = await fetch(`/api/thumbnail?videoId=${videoId}`);
+          const response = await fetch(`/api/thumbnail?videoId=${videoId}&refresh=true`);
           if (response.ok) {
             const data = await response.json();
             if (data.thumbnailUrl) {
-              setImgSrc(data.thumbnailUrl);
+              setImgSrc(toProxyUrl(data.thumbnailUrl));
               setIsLoading(false);
               setHasError(false);
               return;
             }
           }
         } catch (error) {
-          console.log("Thumbnail fetch failed:", error);
+          console.log("Instagram thumbnail refresh failed:", error);
         }
         
         // 取得失敗時はプレースホルダーを表示
@@ -95,27 +130,57 @@ export function VideoThumbnail({
         setIsLoading(false);
       };
 
-      fetchThumbnail();
+      fetchFreshThumbnail();
       return;
     }
 
-    // その他の場合はプレースホルダー
-    setHasError(true);
-    setIsLoading(false);
+    // TikTok動画の場合
+    if (thumbnailUrl) {
+      setImgSrc(thumbnailUrl);
+      setIsLoading(false);
+      setHasError(false);
+      return;
+    }
+
+    // DBにサムネイルURLがない場合、thumbnail APIで取得
+    const fetchThumbnail = async () => {
+      try {
+        const response = await fetch(`/api/thumbnail?videoId=${videoId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.thumbnailUrl) {
+            setImgSrc(data.thumbnailUrl);
+            setIsLoading(false);
+            setHasError(false);
+            return;
+          }
+        }
+      } catch (error) {
+        console.log("Thumbnail fetch failed:", error);
+      }
+      
+      setHasError(true);
+      setIsLoading(false);
+    };
+
+    fetchThumbnail();
   }, [videoId, thumbnailUrl, platform]);
 
   const handleError = async () => {
-    // 1回だけoEmbedでリフレッシュ取得を試みる（署名切れ対策）
-    if (retryCount < 1 && (platform === "tiktok" || platform === "instagram")) {
+    // 1回だけリフレッシュ取得を試みる
+    if (retryCount < 1) {
       setRetryCount((prev) => prev + 1);
       try {
         const response = await fetch(`/api/thumbnail?videoId=${videoId}&refresh=true`);
         if (response.ok) {
           const data = await response.json();
-          if (data.thumbnailUrl && data.thumbnailUrl !== imgSrc) {
-            setImgSrc(data.thumbnailUrl);
-            setHasError(false);
-            return;
+          if (data.thumbnailUrl) {
+            const newSrc = platform === "instagram" ? toProxyUrl(data.thumbnailUrl) : data.thumbnailUrl;
+            if (newSrc !== imgSrc) {
+              setImgSrc(newSrc);
+              setHasError(false);
+              return;
+            }
           }
         }
       } catch (error) {

@@ -111,7 +111,7 @@ async function collectYouTube(industryId: number, apiToken: string): Promise<{ v
   const hashtags = industry.hashtags.map((h) => h.hashtag);
   if (hashtags.length === 0) return { videosNew: 0, videosUpdated: 0, total: 0 };
 
-  const searchKeywords = hashtags.map((h) => h.startsWith('#') ? h : `#${h}`);
+  const searchQueries = hashtags.map((h) => h.startsWith('#') ? h : `#${h}`);
 
   const collectionLog = await prisma.collectionLog.create({
     data: { industryId, hashtag: hashtags.join(", "), status: "running", startedAt: new Date(), platform: "youtube" },
@@ -122,7 +122,7 @@ async function collectYouTube(industryId: number, apiToken: string): Promise<{ v
     const apifyResponse = await fetch(apifyUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ searchKeywords, maxResults: 30, maxResultsShorts: 30, searchType: "video", verboseLog: false }),
+      body: JSON.stringify({ searchQueries, maxResults: 30, maxResultsShorts: 30 }),
     });
     if (!apifyResponse.ok) throw new Error(`Apify APIエラー: ${apifyResponse.status}`);
     const apifyData: YouTubeVideoItem[] = await apifyResponse.json();

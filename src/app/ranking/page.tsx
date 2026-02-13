@@ -431,10 +431,10 @@ export default function RankingPage() {
         <Card className="bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200">
           <AIAssistCard
             type="ranking"
+            platform={platform}
             industryId={selectedIndustry !== "all" ? selectedIndustry : undefined}
             data={{
               totalVideos: videos.length,
-              platform,
               sortBy: sortBy.split("_")[0],
             }}
             title="ランキング分析"

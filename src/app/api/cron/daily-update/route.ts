@@ -84,7 +84,7 @@ async function collectYouTube(industryId: number, apiToken: string) {
   if (!industry) return { videosNew: 0, videosUpdated: 0, total: 0 };
   const hashtags = industry.hashtags.map((h) => h.hashtag);
   if (hashtags.length === 0) return { videosNew: 0, videosUpdated: 0, total: 0 };
-  const searchKeywords = hashtags.map((h) => h.startsWith('#') ? h : `#${h}`);
+  const searchQueries = hashtags.map((h) => h.startsWith('#') ? h : `#${h}`);
 
   const collectionLog = await prisma.collectionLog.create({
     data: { industryId, hashtag: hashtags.join(", "), status: "running", startedAt: new Date(), platform: "youtube" },
@@ -92,7 +92,7 @@ async function collectYouTube(industryId: number, apiToken: string) {
 
   try {
     const apifyUrl = `https://api.apify.com/v2/acts/streamers~youtube-scraper/run-sync-get-dataset-items?token=${apiToken}`;
-    const res = await fetch(apifyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ searchKeywords, maxResults: 30, maxResultsShorts: 30, searchType: "video", verboseLog: false }) });
+    const res = await fetch(apifyUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ searchQueries, maxResults: 30, maxResultsShorts: 30 }) });
     if (!res.ok) throw new Error(`Apify APIエラー: ${res.status}`);
     const apifyData: YouTubeVideoItem[] = await res.json();
     const shortsOnly = apifyData.filter(item => item.url?.includes('/shorts/') || (parseDuration(item.duration) !== null && parseDuration(item.duration)! <= 60));

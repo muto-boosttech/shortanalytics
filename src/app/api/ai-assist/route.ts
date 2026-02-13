@@ -93,12 +93,37 @@ ${data.durationStats?.map((s: { category: string; avgEngagement: number; count: 
 上記データから読み取れる傾向と、この業種で成功するための具体的なアドバイスを提供してください。`;
 
     } else if (type === "ranking") {
-      // ランキング用の詳細分析
+      // ランキング用の詳細分析 - DBから直接データを取得
       const industry = industryId
         ? await prisma.industry.findUnique({ where: { id: parseInt(industryId) } })
         : null;
 
       const industryName = industry?.name || "全業種";
+
+      // DBからプラットフォーム・業種に応じた動画データを取得
+      const whereClause: Record<string, unknown> = {
+        platform: platform || "tiktok",
+      };
+      if (industryId) {
+        whereClause.videoTags = {
+          some: {
+            industryId: parseInt(industryId),
+          },
+        };
+      }
+
+      const dbVideos = await prisma.video.findMany({
+        where: whereClause,
+        include: {
+          videoTags: {
+            include: {
+              industry: true,
+            },
+          },
+        },
+        orderBy: { viewCount: "desc" },
+        take: 50, // 分析用に上位50件を取得
+      });
 
       systemPrompt = `あなたはSNSショート動画（TikTok / YouTube Shorts / Instagram Reels）の専門アナリストです。
 以下に提供するデータをもとに、再生数・エンゲージメントが高い投稿の傾向を多角的に分析してください。
@@ -113,36 +138,21 @@ ${data.durationStats?.map((s: { category: string; avgEngagement: number; count: 
 - 数値は「12,345回」「3.5%」のように読みやすい形式で記載してください。
 - 箇条書きには「-」を使い、番号付きリストには「1. 2. 3. ...」を使ってください。`;
 
-      // 投稿データを整形
-      // likes/commentsが取得できているデータの割合を計算
-      const allVideos = data.allVideos || [];
-      const videosWithLikes = allVideos.filter((v: { likeCount: number }) => v.likeCount > 0).length;
-      const videosWithComments = allVideos.filter((v: { commentCount: number }) => v.commentCount > 0).length;
-      const hasEngagementData = videosWithLikes > allVideos.length * 0.1; // 10%以上にデータがあれば有効
+      // DB取得データを整形
+      const videosWithLikes = dbVideos.filter(v => v.likeCount > 0).length;
+      const hasEngagementData = videosWithLikes > dbVideos.length * 0.1;
 
-      const videoDataList = allVideos.map((v: {
-        description: string;
-        viewCount: number;
-        likeCount: number;
-        commentCount: number;
-        shareCount: number;
-        engagementRate: number;
-        videoDurationSeconds: number;
-        contentType?: string;
-        hookType?: string;
-        authorUsername: string;
-        postedAt: string;
-        hashtags?: string[];
-        platform?: string;
-      }, i: number) => {
+      const videoDataList = dbVideos.map((v, i) => {
         const hashtags = v.hashtags?.join(", ") || "なし";
-        const postedAtStr = v.postedAt && !v.postedAt.includes("1970") && v.postedAt !== "null" 
-          ? v.postedAt 
+        const postedAtStr = v.postedAt && v.postedAt.toISOString() !== "1970-01-01T00:00:00.000Z"
+          ? v.postedAt.toISOString().split("T")[0]
           : "取得不可";
         const likesStr = v.likeCount > 0 ? v.likeCount.toLocaleString() : "取得不可";
         const commentsStr = v.commentCount > 0 ? v.commentCount.toLocaleString() : "取得不可";
         const sharesStr = v.shareCount > 0 ? v.shareCount.toLocaleString() : "取得不可";
         const erStr = v.engagementRate > 0 ? `${(v.engagementRate * 100).toFixed(2)}%` : "算出不可";
+        const contentType = v.videoTags?.[0]?.contentType || "未分類";
+        const hookType = v.videoTags?.[0]?.hookType || "未分類";
         return `${i + 1}. タイトル/キャプション: ${v.description?.substring(0, 120) || "なし"}
    - プラットフォーム: ${platformLabel}
    - 投稿日時: ${postedAtStr}
@@ -154,12 +164,12 @@ ${data.durationStats?.map((s: { category: string; avgEngagement: number; count: 
    - シェア/保存数: ${sharesStr}
    - エンゲージメント率: ${erStr}
    - 投稿者: @${v.authorUsername || "不明"}
-   - コンテンツタイプ: ${v.contentType || "未分類"}
-   - フック: ${v.hookType || "未分類"}`;
+   - コンテンツタイプ: ${contentType}
+   - フック: ${hookType}`;
       }).join("\n\n") || "データなし";
 
       const dataQualityNote = !hasEngagementData 
-        ? `\n\n※ 注意: いいね数・コメント数のデータが大部分の動画で取得できていません（${videosWithLikes}/${allVideos.length}件のみ取得済み）。エンゲージメント分析は再生数ベースで行い、いいね数等が取得できている動画のデータも参考にしてください。`
+        ? `\n\n※ 注意: いいね数・コメント数のデータが大部分の動画で取得できていません（${videosWithLikes}/${dbVideos.length}件のみ取得済み）。エンゲージメント分析は再生数ベースで行い、いいね数等が取得できている動画のデータも参考にしてください。`
         : "";
 
       prompt = `━━━━━━━━━━━━━━━━━━━━━━━
@@ -167,7 +177,8 @@ ${data.durationStats?.map((s: { category: string; avgEngagement: number; count: 
 ━━━━━━━━━━━━━━━━━━━━━━━
 プラットフォーム: ${platformLabel}
 業種: ${industryName}
-データ件数: ${data.allVideos?.length || 0}件
+データ件数: ${dbVideos.length}件
+${dbVideos.length === 0 ? "\n※ 該当するプラットフォーム・業種のデータが見つかりませんでした。一般的な知見に基づいて分析してください。" : ""}
 
 ${videoDataList}
 
