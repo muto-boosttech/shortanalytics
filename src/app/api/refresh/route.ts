@@ -308,6 +308,7 @@ const industryHashtagMapping: Record<number, string[]> = {
   18: ["美容", "コスメ", "スキンケア", "メイク", "美肌", "化粧品"],
   19: ["旅行", "トラベル", "国内旅行", "海外旅行", "観光", "絶景"],
   20: ["医療", "健康", "ヘルスケア", "病院", "予防", "医師"],
+  21: ["ペット", "犬", "猫", "ペットホテル", "猫ホテル", "キャットホテル", "わんこ", "にゃんこ", "トリミング", "ドッグ", "キャット"],
 };
 
 function detectTag(text: string, rules: Record<string, string[]>): string | null {
