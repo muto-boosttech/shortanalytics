@@ -338,14 +338,21 @@ function detectIndustryFromHashtags(hashtags: string[]): number | null {
   return null;
 }
 
-async function runAutoTag(): Promise<{ processed: number; tagged: number }> {
-  // 既存タグを削除
-  await prisma.videoTag.deleteMany({});
-
-  // タグがない動画を対象
-  const videos = await prisma.video.findMany({
-    where: { videoTags: { none: {} } },
-  });
+async function runAutoTag(videoIds?: number[]): Promise<{ processed: number; tagged: number }> {
+  // 特定の動画IDが指定された場合はそれらのみ、なければタグがない動画を対象
+  let videos;
+  if (videoIds && videoIds.length > 0) {
+    // 指定された動画の既存タグを削除してから再タグ付け
+    await prisma.videoTag.deleteMany({ where: { videoId: { in: videoIds } } });
+    videos = await prisma.video.findMany({
+      where: { id: { in: videoIds } },
+    });
+  } else {
+    // タグがない動画のみを対象（全削除しない）
+    videos = await prisma.video.findMany({
+      where: { videoTags: { none: {} } },
+    });
+  }
 
   let processed = 0, tagged = 0;
   for (const video of videos) {
@@ -536,6 +543,9 @@ export async function POST(request: NextRequest) {
       benchmarks: false,
     };
 
+    // 新規収集された動画IDを追跡
+    const newVideoIds: number[] = [];
+
     // ===== データ収集（直接実行） =====
     if (type === "full" || type === "collect") {
       let industries = await prisma.industry.findMany({
@@ -591,10 +601,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ===== タグ付け（直接実行） =====
+    // ===== タグ付け（タグなし動画のみ対象、全削除しない） =====
     if (type === "full" || type === "tag") {
       try {
-        console.log("[Manual Refresh] Starting auto-tagging...");
+        console.log("[Manual Refresh] Starting auto-tagging (untagged videos only)...");
         results.tagging = await runAutoTag();
         console.log(`[Manual Refresh] Auto-tagging: ${results.tagging.processed}件処理, ${results.tagging.tagged}件タグ付け`);
       } catch (error) {
@@ -602,8 +612,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ===== サムネイル更新（直接実行） =====
-    if (type === "full" || type === "thumbnail") {
+    // ===== サムネイル更新（thumbnailタイプ指定時のみ実行、fullでは省略） =====
+    if (type === "thumbnail") {
       try {
         console.log("[Manual Refresh] Updating thumbnails...");
         results.thumbnails.updated = await updateThumbnails();

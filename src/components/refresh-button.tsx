@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, CheckCircle, XCircle, Loader2 } from "lucide-react";
 
@@ -42,6 +42,12 @@ interface RefreshButtonProps {
   compact?: boolean;
 }
 
+const PROGRESS_STEPS = [
+  { key: "collect", label: "データ収集中...", duration: 60 },
+  { key: "tag", label: "タグ付け中...", duration: 15 },
+  { key: "benchmark", label: "ベンチマーク計算中...", duration: 10 },
+];
+
 export function RefreshButton({
   type = "full",
   platform,
@@ -56,11 +62,50 @@ export function RefreshButton({
   const [refreshing, setRefreshing] = useState(false);
   const [result, setResult] = useState<RefreshResult | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [progressStep, setProgressStep] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  // 経過時間カウンター
+  useEffect(() => {
+    if (!refreshing) {
+      setElapsedTime(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setElapsedTime((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [refreshing]);
+
+  // 進捗ステップの自動進行（推定時間ベース）
+  useEffect(() => {
+    if (!refreshing) {
+      setProgressStep(0);
+      return;
+    }
+    // 収集: 0-60秒, タグ付け: 60-75秒, ベンチマーク: 75-85秒
+    if (elapsedTime >= 75) {
+      setProgressStep(2);
+    } else if (elapsedTime >= 60) {
+      setProgressStep(1);
+    } else {
+      setProgressStep(0);
+    }
+  }, [refreshing, elapsedTime]);
+
+  const formatElapsedTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) return `${mins}分${secs}秒`;
+    return `${secs}秒`;
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
     setResult(null);
     setShowResult(false);
+    setProgressStep(0);
+    setElapsedTime(0);
 
     try {
       const body: Record<string, string | undefined> = { type };
@@ -100,6 +145,10 @@ export function RefreshButton({
     }
   };
 
+  const currentStepLabel = refreshing && type === "full"
+    ? PROGRESS_STEPS[progressStep]?.label || "処理中..."
+    : "更新中...";
+
   return (
     <div className="relative inline-flex items-center gap-2">
       <Button
@@ -108,12 +157,17 @@ export function RefreshButton({
         className={`gap-1.5 ${className}`}
         onClick={handleRefresh}
         disabled={refreshing}
-        title={refreshing ? "更新中..." : label}
+        title={refreshing ? currentStepLabel : label}
       >
         {refreshing ? (
           <>
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {!compact && <span className="text-xs sm:text-sm">更新中...</span>}
+            {!compact && (
+              <span className="text-xs sm:text-sm">
+                {currentStepLabel}
+                <span className="ml-1 text-gray-400">({formatElapsedTime(elapsedTime)})</span>
+              </span>
+            )}
           </>
         ) : (
           <>
