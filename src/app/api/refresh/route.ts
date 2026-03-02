@@ -329,13 +329,38 @@ function getDurationCategory(seconds: number | null): string {
   return "60秒以上";
 }
 
-function detectIndustryFromHashtags(hashtags: string[]): number | null {
-  const hashtagsLower = hashtags.map(h => h.toLowerCase());
-  for (const [industryId, keywords] of Object.entries(industryHashtagMapping)) {
-    for (const keyword of keywords) {
-      if (hashtagsLower.some(h => h.includes(keyword.toLowerCase()))) return parseInt(industryId);
+function detectIndustryFromHashtags(hashtags: string[], description?: string | null): number | null {
+  // ハッシュタグ配列 + descriptionから#付きタグを抽出して統合
+  const allTags = [...hashtags];
+  if (description) {
+    const descTags = description.match(/#([^\s#]+)/g);
+    if (descTags) {
+      allTags.push(...descTags.map(t => t.replace('#', '')));
     }
   }
+
+  const tagsLower = allTags.map(h => h.toLowerCase());
+  const descLower = (description || '').toLowerCase();
+
+  // まずハッシュタグからマッチを試みる
+  for (const [industryId, keywords] of Object.entries(industryHashtagMapping)) {
+    for (const keyword of keywords) {
+      const kw = keyword.toLowerCase();
+      if (tagsLower.some(h => h.includes(kw))) {
+        return parseInt(industryId);
+      }
+    }
+  }
+
+  // ハッシュタグでマッチしない場合はdescription全体からキーワードを検索
+  for (const [industryId, keywords] of Object.entries(industryHashtagMapping)) {
+    for (const keyword of keywords) {
+      if (descLower.includes(keyword.toLowerCase())) {
+        return parseInt(industryId);
+      }
+    }
+  }
+
   return null;
 }
 
@@ -359,7 +384,7 @@ async function runAutoTag(videoIds?: number[]): Promise<{ processed: number; tag
   for (const video of videos) {
     processed++;
     const hashtags = Array.isArray(video.hashtags) ? video.hashtags as string[] : [];
-    const targetIndustryId = detectIndustryFromHashtags(hashtags) || 11;
+    const targetIndustryId = detectIndustryFromHashtags(hashtags, video.description) || 11;
 
     const text = `${video.description || ""} ${hashtags.join(" ")}`;
     const contentType = detectTag(text, contentTypeRules);
