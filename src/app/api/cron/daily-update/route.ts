@@ -353,16 +353,10 @@ function getRotationTarget(industries: { id: number; name: string }[]): { indust
   const platforms = ["tiktok", "youtube", "instagram"];
   const totalCombinations = industries.length * platforms.length;
 
-  // 現在のUTC時間から「何番目の組み合わせを処理するか」を計算
-  // 1日に複数回cronが走る場合、時間ベースでローテーション
+  // 1日1回実行: dayOfYearベースでローテーション
   const now = new Date();
   const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000);
-  const hourSlot = now.getUTCHours(); // 0-23
-
-  // 1日に4回実行（0時、6時、12時、18時 UTC）を想定
-  // dayOfYear * 4 + hourSlot/6 でインデックスを計算
-  const slotIndex = dayOfYear * 4 + Math.floor(hourSlot / 6);
-  const targetIndex = slotIndex % totalCombinations;
+  const targetIndex = dayOfYear % totalCombinations;
 
   const industryIndex = Math.floor(targetIndex / platforms.length);
   const platformIndex = targetIndex % platforms.length;
