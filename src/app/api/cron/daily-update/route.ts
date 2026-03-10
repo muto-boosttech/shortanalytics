@@ -22,8 +22,10 @@ async function collectTikTok(industryId: number, apiToken: string) {
   const hashtags = industry.hashtags.map((h) => h.hashtag);
   if (hashtags.length === 0) return { videosNew: 0, videosUpdated: 0, total: 0 };
 
-  // ハッシュタグが多い場合は最大10個に制限（API負荷軽減）
-  const selectedHashtags = hashtags.length > 10 ? hashtags.slice(0, 10) : hashtags;
+  // ハッシュタグが多い場合はランダムに最大10個選択
+  const selectedHashtags = hashtags.length > 10
+    ? hashtags.sort(() => Math.random() - 0.5).slice(0, 10)
+    : hashtags;
 
   const collectionLog = await prisma.collectionLog.create({
     data: { industryId, hashtag: selectedHashtags.join(", "), status: "running", startedAt: new Date() },
@@ -35,7 +37,7 @@ async function collectTikTok(industryId: number, apiToken: string) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ hashtags: selectedHashtags, resultsPerPage: 30 }),
-      signal: AbortSignal.timeout(120000), // 2分タイムアウト
+      signal: AbortSignal.timeout(25000), // 25秒タイムアウト（1回あたり短く）
     });
     if (!res.ok) throw new Error(`Apify APIエラー: ${res.status}`);
     const data: ApifyVideoItem[] = await res.json();
@@ -93,8 +95,10 @@ async function collectYouTube(industryId: number, apiToken: string) {
   const hashtags = industry.hashtags.map((h) => h.hashtag);
   if (hashtags.length === 0) return { videosNew: 0, videosUpdated: 0, total: 0 };
 
-  // ハッシュタグが多い場合は最大10個に制限
-  const selectedHashtags = hashtags.length > 10 ? hashtags.slice(0, 10) : hashtags;
+  // ハッシュタグが多い場合はランダムに最大10個選択
+  const selectedHashtags = hashtags.length > 10
+    ? hashtags.sort(() => Math.random() - 0.5).slice(0, 10)
+    : hashtags;
   const searchQueries = selectedHashtags.map((h) => h.startsWith('#') ? h : `#${h}`);
 
   const collectionLog = await prisma.collectionLog.create({
@@ -107,7 +111,7 @@ async function collectYouTube(industryId: number, apiToken: string) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ searchQueries, maxResults: 30, maxResultsShorts: 30 }),
-      signal: AbortSignal.timeout(120000), // 2分タイムアウト
+      signal: AbortSignal.timeout(25000), // 25秒タイムアウト
     });
     if (!res.ok) throw new Error(`Apify APIエラー: ${res.status}`);
     const apifyData: YouTubeVideoItem[] = await res.json();
@@ -158,8 +162,10 @@ async function collectInstagram(industryId: number, apiToken: string) {
   const hashtags = industry.hashtags.map((h) => h.hashtag);
   if (hashtags.length === 0) return { videosNew: 0, videosUpdated: 0, total: 0 };
 
-  // ハッシュタグが多い場合は最大10個に制限
-  const selectedHashtags = hashtags.length > 10 ? hashtags.slice(0, 10) : hashtags;
+  // ハッシュタグが多い場合はランダムに最大10個選択
+  const selectedHashtags = hashtags.length > 10
+    ? hashtags.sort(() => Math.random() - 0.5).slice(0, 10)
+    : hashtags;
 
   const collectionLog = await prisma.collectionLog.create({
     data: { industryId, hashtag: selectedHashtags.join(", "), status: "running", startedAt: new Date(), platform: "instagram" },
@@ -171,7 +177,7 @@ async function collectInstagram(industryId: number, apiToken: string) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ hashtags: selectedHashtags.map(h => h.replace(/^#/, "")), resultsType: "reels", resultsLimit: 30 }),
-      signal: AbortSignal.timeout(120000), // 2分タイムアウト
+      signal: AbortSignal.timeout(25000), // 25秒タイムアウト
     });
     if (!res.ok) throw new Error(`Apify APIエラー: ${res.status}`);
     const apifyData: InstagramReelItem[] = await res.json();
@@ -189,10 +195,10 @@ async function collectInstagram(industryId: number, apiToken: string) {
 
       const existing = await prisma.video.findUnique({ where: { tiktokVideoId: videoId } });
       if (existing) {
-        await prisma.video.update({ where: { tiktokVideoId: videoId }, data: { videoUrl: item.url, description: item.caption || "", hashtags: item.hashtags || [], viewCount, likeCount, commentCount, shareCount, engagementRate, videoDurationSeconds: item.videoDuration ? Math.round(item.videoDuration) : null, authorUsername: item.ownerUsername || null, postedAt, thumbnailUrl: item.displayUrl || existing.thumbnailUrl, collectedAt: new Date(), platform: "instagram" } });
+        await prisma.video.update({ where: { tiktokVideoId: videoId }, data: { videoUrl: item.url, description: item.caption || "", hashtags: item.hashtags || [], viewCount, likeCount, commentCount, shareCount, engagementRate, videoDurationSeconds: item.videoDuration || null, authorUsername: item.ownerUsername || null, postedAt, thumbnailUrl: item.displayUrl || existing.thumbnailUrl, collectedAt: new Date(), platform: "instagram" } });
         videosUpdated++;
       } else {
-        await prisma.video.create({ data: { tiktokVideoId: videoId, videoUrl: item.url, description: item.caption || "", hashtags: item.hashtags || [], viewCount, likeCount, commentCount, shareCount, engagementRate, videoDurationSeconds: item.videoDuration ? Math.round(item.videoDuration) : null, authorUsername: item.ownerUsername || null, postedAt, thumbnailUrl: item.displayUrl || null, collectedAt: new Date(), source: "apify", platform: "instagram" } });
+        await prisma.video.create({ data: { tiktokVideoId: videoId, videoUrl: item.url, description: item.caption || "", hashtags: item.hashtags || [], viewCount, likeCount, commentCount, shareCount, engagementRate, videoDurationSeconds: item.videoDuration || null, authorUsername: item.ownerUsername || null, postedAt, thumbnailUrl: item.displayUrl || null, collectedAt: new Date(), source: "apify", platform: "instagram" } });
         videosNew++;
       }
     }
@@ -205,9 +211,9 @@ async function collectInstagram(industryId: number, apiToken: string) {
   }
 }
 
-// ===== Auto-tag ロジック =====
+// ===== タグ付けルール =====
 const contentTypeRules: Record<string, string[]> = {
-  "チュートリアル": ["やり方", "方法", "教える", "解説", "ハウツー", "How to", "tutorial"],
+  "チュートリアル": ["やり方", "方法", "教え", "レクチャー", "tutorial", "how to"],
   "レビュー": ["レビュー", "正直", "使ってみた", "買ってみた", "感想", "review"],
   "Vlog": ["vlog", "日常", "1日", "ルーティン", "routine"],
   "ビフォーアフター": ["ビフォーアフター", "before", "after", "変化", "変身"],
@@ -345,32 +351,48 @@ async function recalculateBenchmarks() {
   }
 }
 
-// ===== ローテーション方式のcronジョブ =====
-// 1回のcron実行で1業種×1プラットフォームのみ処理し、次回は次の組み合わせを処理
-// これによりVercelの300秒制限内に確実に収まる
+// ===== バッチ方式のcronジョブ =====
+// 1回のcron実行で9組み合わせを順次処理（1日4回 × 9 = 36 > 33組み合わせ = 毎日全一巡）
+// 各Apify呼び出しは25秒タイムアウト、エラーでも次に進む
+// 最大所要時間: 9 × 25秒 = 225秒 < 300秒（Vercel Pro制限）
 
-function getRotationTarget(industries: { id: number; name: string }[]): { industryId: number; industryName: string; platform: string } {
+const BATCH_SIZE = 9; // 1回のcron実行で処理する組み合わせ数
+
+function getBatchTargets(industries: { id: number; name: string }[]): { industryId: number; industryName: string; platform: string }[] {
   const platforms = ["tiktok", "youtube", "instagram"];
-  const totalCombinations = industries.length * platforms.length;
+  const allCombinations: { industryId: number; industryName: string; platform: string }[] = [];
 
-  // 1日4回実行（0時、6時、12時、18時 UTC）: dayOfYear * 4 + hourSlot でローテーション
+  for (const industry of industries) {
+    for (const platform of platforms) {
+      allCombinations.push({
+        industryId: industry.id,
+        industryName: industry.name,
+        platform,
+      });
+    }
+  }
+
+  const totalCombinations = allCombinations.length; // 33
+
+  // 1日4回実行（0時、6時、12時、18時 UTC）
+  // dayOfYear * 4 + hourSlot でバッチの開始位置を決定
   const now = new Date();
   const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000);
   const hourSlot = Math.floor(now.getUTCHours() / 6); // 0-3
-  const slotIndex = dayOfYear * 4 + hourSlot;
-  const targetIndex = slotIndex % totalCombinations;
+  const batchIndex = (dayOfYear * 4 + hourSlot); // 何番目のバッチか
+  const startIndex = (batchIndex * BATCH_SIZE) % totalCombinations;
 
-  const industryIndex = Math.floor(targetIndex / platforms.length);
-  const platformIndex = targetIndex % platforms.length;
+  // startIndexからBATCH_SIZE個を取得（循環）
+  const targets: { industryId: number; industryName: string; platform: string }[] = [];
+  for (let i = 0; i < BATCH_SIZE; i++) {
+    const idx = (startIndex + i) % totalCombinations;
+    targets.push(allCombinations[idx]);
+  }
 
-  return {
-    industryId: industries[industryIndex].id,
-    industryName: industries[industryIndex].name,
-    platform: platforms[platformIndex],
-  };
+  return targets;
 }
 
-// GET /api/cron/daily-update - ローテーション方式で自動実行
+// GET /api/cron/daily-update - バッチ方式で自動実行（1回9組み合わせ）
 export async function GET(request: NextRequest) {
   try {
     // Cron認証チェック
@@ -385,37 +407,52 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "APIFY_API_TOKEN not set" }, { status: 500 });
     }
 
-    console.log("[Daily Update] Starting (rotation mode)...");
+    console.log("[Daily Update] Starting (batch mode - 9 combinations per run)...");
 
     const industries = await prisma.industry.findMany({ orderBy: { id: "asc" } });
-    const target = getRotationTarget(industries);
+    const targets = getBatchTargets(industries);
 
-    console.log(`[Daily Update] Target: ${target.industryName} (${target.platform})`);
+    console.log(`[Daily Update] Batch targets: ${targets.map(t => `${t.industryName}(${t.platform})`).join(", ")}`);
 
-    // 1. データ収集（1業種×1プラットフォーム）
-    let collectResult = { videosNew: 0, videosUpdated: 0, total: 0 };
-    let collectStatus = "success";
-    try {
-      if (target.platform === "tiktok") {
-        collectResult = await collectTikTok(target.industryId, APIFY_API_TOKEN);
-      } else if (target.platform === "youtube") {
-        collectResult = await collectYouTube(target.industryId, APIFY_API_TOKEN);
-      } else {
-        collectResult = await collectInstagram(target.industryId, APIFY_API_TOKEN);
+    // 1. データ収集（最大9組み合わせを順次処理）
+    const results: { industry: string; platform: string; status: string; total: number; new: number; updated: number }[] = [];
+
+    for (const target of targets) {
+      let collectResult = { videosNew: 0, videosUpdated: 0, total: 0 };
+      let collectStatus = "success";
+      try {
+        console.log(`[Daily Update] Collecting: ${target.industryName} (${target.platform})...`);
+        if (target.platform === "tiktok") {
+          collectResult = await collectTikTok(target.industryId, APIFY_API_TOKEN);
+        } else if (target.platform === "youtube") {
+          collectResult = await collectYouTube(target.industryId, APIFY_API_TOKEN);
+        } else {
+          collectResult = await collectInstagram(target.industryId, APIFY_API_TOKEN);
+        }
+        console.log(`[Daily Update] ${target.industryName}(${target.platform}): ${collectResult.total}件 (new: ${collectResult.videosNew})`);
+      } catch (error) {
+        console.error(`[Daily Update] ${target.industryName}(${target.platform}) error:`, (error as Error).message);
+        collectStatus = "failed";
       }
-      console.log(`[Daily Update] Collected: ${collectResult.total}件 (new: ${collectResult.videosNew})`);
-    } catch (error) {
-      console.error(`[Daily Update] Collection error:`, error);
-      collectStatus = "failed";
-    }
 
-    await delay(1000);
+      results.push({
+        industry: target.industryName,
+        platform: target.platform,
+        status: collectStatus,
+        total: collectResult.total,
+        new: collectResult.videosNew,
+        updated: collectResult.videosUpdated,
+      });
+
+      // 次のAPI呼び出しまで少し待つ
+      await delay(500);
+    }
 
     // 2. 自動タグ付け（タグなし動画のみ）
     console.log("[Daily Update] Auto-tagging untagged videos...");
     const untaggedVideos = await prisma.video.findMany({
       where: { videoTags: { none: {} } },
-      take: 500, // バッチサイズ制限
+      take: 500,
     });
 
     let tagged = 0;
@@ -440,13 +477,13 @@ export async function GET(request: NextRequest) {
     }
     console.log(`[Daily Update] Tagged ${tagged} videos`);
 
-    // 3. サムネイル更新（最大50件）
+    // 3. サムネイル更新（最大30件に制限して時間節約）
     console.log("[Daily Update] Updating thumbnails...");
     let thumbUpdated = 0;
     const noThumbVideos = await prisma.video.findMany({
       where: { thumbnailUrl: null },
       select: { id: true, tiktokVideoId: true, platform: true },
-      take: 50,
+      take: 30,
     });
     for (const video of noThumbVideos) {
       try {
@@ -456,7 +493,7 @@ export async function GET(request: NextRequest) {
         if (platform === "tiktok") {
           const videoUrl = `https://www.tiktok.com/@user/video/${video.tiktokVideoId}`;
           const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(videoUrl)}`;
-          const response = await fetch(oembedUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+          const response = await fetch(oembedUrl, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(5000) });
           if (response.ok) {
             const data = await response.json();
             thumbnailUrl = data.thumbnail_url || null;
@@ -470,7 +507,7 @@ export async function GET(request: NextRequest) {
           await prisma.video.update({ where: { id: video.id }, data: { thumbnailUrl } });
           thumbUpdated++;
         }
-        await delay(200);
+        await delay(100);
       } catch (error) {
         console.error(`[Daily Update] Thumb error for ${video.id}:`, error);
       }
@@ -483,11 +520,22 @@ export async function GET(request: NextRequest) {
 
     console.log("[Daily Update] Completed");
 
+    const successCount = results.filter(r => r.status === "success").length;
+    const failedCount = results.filter(r => r.status === "failed").length;
+    const totalCollected = results.reduce((sum, r) => sum + r.total, 0);
+    const totalNew = results.reduce((sum, r) => sum + r.new, 0);
+
     return NextResponse.json({
       success: true,
-      message: "Daily update completed (rotation mode)",
-      target: { industry: target.industryName, platform: target.platform },
-      collection: { status: collectStatus, ...collectResult },
+      message: `Daily update completed (batch mode: ${targets.length} combinations)`,
+      batch: {
+        processed: targets.length,
+        success: successCount,
+        failed: failedCount,
+        totalCollected,
+        totalNew,
+      },
+      details: results,
       tagged,
       thumbnailsUpdated: thumbUpdated,
     });
