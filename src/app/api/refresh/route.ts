@@ -29,8 +29,11 @@ async function collectTikTok(industryId: number, apiToken: string): Promise<{ vi
   });
   if (!industry) throw new Error("業種が見つかりません");
 
-  const hashtags = industry.hashtags.map((h) => h.hashtag);
-  if (hashtags.length === 0) return { videosNew: 0, videosUpdated: 0, total: 0 };
+  const allHashtags = industry.hashtags.map((h) => h.hashtag);
+  if (allHashtags.length === 0) return { videosNew: 0, videosUpdated: 0, total: 0 };
+
+  // ハッシュタグが多い場合はランダムに10個選択（API負荷軽減）
+  const hashtags = allHashtags.length > 10 ? allHashtags.sort(() => Math.random() - 0.5).slice(0, 10) : allHashtags;
 
   const collectionLog = await prisma.collectionLog.create({
     data: { industryId, hashtag: hashtags.join(", "), status: "running", startedAt: new Date() },
@@ -42,6 +45,7 @@ async function collectTikTok(industryId: number, apiToken: string): Promise<{ vi
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ hashtags, resultsPerPage: 30 }),
+      signal: AbortSignal.timeout(120000),
     });
     if (!apifyResponse.ok) throw new Error(`Apify APIエラー: ${apifyResponse.status}`);
     const apifyData: ApifyVideoItem[] = await apifyResponse.json();
@@ -108,9 +112,11 @@ async function collectYouTube(industryId: number, apiToken: string): Promise<{ v
   });
   if (!industry) throw new Error("業種が見つかりません");
 
-  const hashtags = industry.hashtags.map((h) => h.hashtag);
-  if (hashtags.length === 0) return { videosNew: 0, videosUpdated: 0, total: 0 };
+  const allHashtags = industry.hashtags.map((h) => h.hashtag);
+  if (allHashtags.length === 0) return { videosNew: 0, videosUpdated: 0, total: 0 };
 
+  // ハッシュタグが多い場合はランダムに10個選択
+  const hashtags = allHashtags.length > 10 ? allHashtags.sort(() => Math.random() - 0.5).slice(0, 10) : allHashtags;
   const searchQueries = hashtags.map((h) => h.startsWith('#') ? h : `#${h}`);
 
   const collectionLog = await prisma.collectionLog.create({
@@ -123,6 +129,7 @@ async function collectYouTube(industryId: number, apiToken: string): Promise<{ v
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ searchQueries, maxResults: 30, maxResultsShorts: 30 }),
+      signal: AbortSignal.timeout(120000),
     });
     if (!apifyResponse.ok) throw new Error(`Apify APIエラー: ${apifyResponse.status}`);
     const apifyData: YouTubeVideoItem[] = await apifyResponse.json();
@@ -191,8 +198,11 @@ async function collectInstagram(industryId: number, apiToken: string): Promise<{
   });
   if (!industry) throw new Error("業種が見つかりません");
 
-  const hashtags = industry.hashtags.map((h) => h.hashtag);
-  if (hashtags.length === 0) return { videosNew: 0, videosUpdated: 0, total: 0 };
+  const allHashtags = industry.hashtags.map((h) => h.hashtag);
+  if (allHashtags.length === 0) return { videosNew: 0, videosUpdated: 0, total: 0 };
+
+  // ハッシュタグが多い場合はランダムに10個選択
+  const hashtags = allHashtags.length > 10 ? allHashtags.sort(() => Math.random() - 0.5).slice(0, 10) : allHashtags;
 
   const collectionLog = await prisma.collectionLog.create({
     data: { industryId, hashtag: hashtags.join(", "), status: "running", startedAt: new Date(), platform: "instagram" },
@@ -204,6 +214,7 @@ async function collectInstagram(industryId: number, apiToken: string): Promise<{
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ hashtags: hashtags.map(h => h.replace(/^#/, "")), resultsType: "reels", resultsLimit: 30 }),
+      signal: AbortSignal.timeout(120000),
     });
     if (!apifyResponse.ok) throw new Error(`Apify APIエラー: ${apifyResponse.status}`);
     const apifyData: InstagramReelItem[] = await apifyResponse.json();
@@ -298,17 +309,17 @@ const ctaTypeRules: Record<string, string[]> = {
 };
 
 const industryHashtagMapping: Record<number, string[]> = {
-  11: ["フィットネス", "筋トレ", "ダイエット", "ジム", "ワークアウト", "ボディメイク"],
-  12: ["エンタメ", "お笑い", "ダンス", "映画", "音楽", "ゲーム"],
-  13: ["ファッション", "OOTD", "コーデ", "着回し", "プチプラ", "トレンド"],
-  14: ["不動産", "マイホーム", "賃貸", "ルームツアー", "インテリア", "物件"],
-  15: ["教育", "勉強", "学習", "英語", "受験", "資格"],
-  16: ["EC", "ショッピング", "購入品", "通販", "レビュー", "おすすめ商品"],
-  17: ["グルメ", "料理", "レシピ", "カフェ", "食べ歩き", "おうちごはん"],
-  18: ["美容", "コスメ", "スキンケア", "メイク", "美肌", "化粧品"],
-  19: ["旅行", "トラベル", "国内旅行", "海外旅行", "観光", "絶景"],
-  20: ["医療", "健康", "ヘルスケア", "病院", "予防", "医師"],
-  21: ["ペット", "犬", "猫", "ペットホテル", "猫ホテル", "キャットホテル", "わんこ", "にゃんこ", "トリミング", "ドッグ", "キャット"],
+  11: ["フィットネス", "筋トレ", "ダイエット", "ジム", "ワークアウト", "ボディメイク", "トレーニング", "筋肉", "腹筋", "プロテイン", "HIIT", "ヨガ", "ピラティス", "ストレッチ", "ランニング", "痩せる", "体脂肪", "美ボディ", "宅トレ", "パーソナルトレーニング"],
+  12: ["エンタメ", "お笑い", "ダンス", "映画", "音楽", "ゲーム", "バラエティ", "コント", "漫才", "モノマネ", "あるある", "おもしろ", "爆笑", "アニメ", "漫画", "推し", "推し活", "歌ってみた", "踊ってみた", "コスプレ", "ASMR", "Vtuber", "ゲーム実況"],
+  13: ["ファッション", "OOTD", "コーデ", "着回し", "プチプラ", "トレンド", "GU", "ユニクロ", "ZARA", "SHEIN", "韓国ファッション", "古着", "スニーカー", "バッグ", "アクセサリー", "骨格診断", "パーソナルカラー", "着痩せ", "おしゃれ", "大人カジュアル"],
+  14: ["不動産", "マイホーム", "賃貸", "ルームツアー", "インテリア", "物件", "新築", "注文住宅", "リノベーション", "リフォーム", "DIY", "住宅ローン", "間取り", "収納", "北欧インテリア", "一人暮らし", "IKEA", "ニトリ", "無印良品", "暮らし"],
+  15: ["教育", "勉強", "学習", "英語", "受験", "資格", "勉強法", "勉強垢", "TOEIC", "英検", "留学", "プログラミング", "簿記", "読書", "朝活", "社会人勉強", "リスキリング", "数学", "大学受験", "塾"],
+  16: ["EC", "ショッピング", "購入品", "通販", "レビュー", "おすすめ商品", "D2C", "Amazon", "楽天", "Qoo10", "SHEIN", "開封動画", "買ってよかった", "コスパ", "セール", "ガジェット", "便利グッズ", "100均", "ダイソー", "サブスク"],
+  17: ["グルメ", "料理", "レシピ", "カフェ", "食べ歩き", "おうちごはん", "ランチ", "ディナー", "簡単レシピ", "時短レシピ", "スイーツ", "パン", "カフェ巡り", "コーヒー", "ラーメン", "寿司", "焼肉", "居酒屋", "和食", "韓国料理"],
+  18: ["美容", "コスメ", "スキンケア", "メイク", "美肌", "化粧品", "デパコス", "プチプラコスメ", "韓国コスメ", "アイメイク", "リップ", "ファンデーション", "ヘアケア", "ヘアアレンジ", "ネイル", "エステ", "脱毛", "美容院", "ナチュラルメイク", "メイク動画"],
+  19: ["旅行", "トラベル", "国内旅行", "海外旅行", "観光", "絶景", "温泉", "ホテル", "リゾート", "沖縄", "京都", "北海道", "ハワイ", "韓国", "台湾", "旅vlog", "お土産", "飛行機", "一人旅", "女子旅"],
+  20: ["医療", "健康", "ヘルスケア", "病院", "予防", "医師", "看護師", "歯科", "美容医療", "整形", "健康診断", "メンタルヘルス", "睡眠", "栄養", "サプリメント", "漢方", "整体", "ストレス", "自律神経", "ダイエット"],
+  21: ["ペット", "犬", "猫", "ペットホテル", "猫ホテル", "キャットホテル", "わんこ", "にゃんこ", "トリミング", "ドッグ", "キャット", "犬のいる暮らし", "猫のいる暮らし", "子犬", "子猫", "保護犬", "保護猫", "トイプードル", "柴犬", "ドッグラン", "ペットフード"],
 };
 
 function detectTag(text: string, rules: Record<string, string[]>): string | null {
